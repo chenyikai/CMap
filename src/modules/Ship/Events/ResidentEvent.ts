@@ -63,6 +63,8 @@ export class ResidentEvent extends EventState {
 
   onMove(e: MapMouseEvent): void {
     if (e.features?.length) {
+      this.context.map.getCanvasContainer().style.cursor = 'pointer'
+
       if (this.hoverId === e.features[0].id) return
 
       if (this.hoverId) {
@@ -77,6 +79,7 @@ export class ResidentEvent extends EventState {
   onLeave(): void {
     this.unhover()
     this.hoverId = null
+    this.context.map.getCanvasContainer().style.cursor = ''
   }
 
   onClick(e: MapMouseEvent): void {

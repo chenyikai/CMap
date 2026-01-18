@@ -14,8 +14,8 @@ export interface IBaseShipOptions {
   cog: number
   rot: number
   type?: string
-  statusId: number
-  status: string
+  statusId?: number
+  status?: string
   time: string
   tooltip?: boolean
   immediate?: boolean
@@ -47,7 +47,10 @@ export type Orientation = 'static' | 'left' | 'right' | 'straight'
 
 export type state = 'hover' | 'focus'
 
-export type ShipConstructor<T extends IBaseShipOptions> = new (map: Map, options: T) => BaseShip<T>
+export type BaseShipConstructor<T extends IBaseShipOptions = any> = new (
+  map: Map,
+  options: T,
+) => BaseShip<T>
 
 export enum ShipEventEnum {
   CREATE = 'Create',

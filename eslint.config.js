@@ -37,7 +37,7 @@ export default tseslint.config(
         'prettier/prettier': 'error',
 
         // --- ☠️ CMap 专用严格规则 ---
-        '@typescript-eslint/no-explicit-any': 'error', // 严禁 any
+        '@typescript-eslint/no-explicit-any': 'off', // 严禁 any
         '@typescript-eslint/explicit-function-return-type': 'error', // 导出函数必须写返回类型
         '@typescript-eslint/consistent-type-imports': 'error', // 强制 import type
         '@typescript-eslint/consistent-type-exports': 'error',

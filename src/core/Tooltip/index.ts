@@ -172,7 +172,7 @@ export class Tooltip extends Module {
 
     if (this.visible) {
       this.render()
-      // this.context.map.on('zoom', this.zoomFunc)
+      this.context.map.on('zoom', this.zoomFunc)
     }
   }
 
