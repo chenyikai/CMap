@@ -1,5 +1,13 @@
 # c-map
 
+## 0.5.0
+
+### Minor Changes
+
+- 714fd68: 1
+- 2f3ce92: 1
+- ad5e01b: 添加类别导出
+
 ## 0.4.0
 
 ### Minor Changes
