@@ -30,4 +30,14 @@ export default defineConfig({
     emptyOutDir: true, // 自动清空 dist
     minify: 'esbuild', // 压缩混淆
   },
+  server: {
+    proxy: {
+      '/ship': {
+        target: 'http://web.aochensoft.com/hxld-back',
+        ws: true,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(RegExp(`^/ship`), ''),
+      },
+    },
+  },
 })

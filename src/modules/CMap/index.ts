@@ -1,8 +1,11 @@
 import EventEmitter from 'eventemitter3'
 import { Map } from 'mapbox-gl'
 
+import IconManager from '@/core/IconManager'
+import { SHIP_ICON, UPDATE_STATUS } from '@/modules/Ship/vars.ts'
 import type { ICMapOptions } from '@/types/CMap'
 import { MapType } from '@/types/CMap'
+import type { SvgIcon } from '@/types/IconManager'
 
 import { landStyle } from './vars.ts'
 
@@ -12,6 +15,8 @@ export class CMap extends EventEmitter {
   private cache = new Set<(map: Map) => void>()
   private timer: number | null = null
   private readonly originalRemove: () => void
+
+  readonly icon: IconManager
 
   static LAND: MapType = MapType.LAND
   static SATELLITE: MapType = MapType.SATELLITE
@@ -31,6 +36,7 @@ export class CMap extends EventEmitter {
     }
 
     this.map = new Map({ ...this.options, style: landStyle })
+    this.icon = new IconManager(this.map)
 
     this.originalRemove = this.map.remove.bind(this.map)
 
@@ -45,6 +51,23 @@ export class CMap extends EventEmitter {
     }
 
     this.map.once('load', () => {
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      SHIP_ICON.forEach(async (icon: SvgIcon) => {
+        await Promise.all([
+          this.icon.addSvg({
+            name: icon.name.replace('$color', UPDATE_STATUS.ONLINE),
+            svg: icon.svg.replace('$color', `#03CC02`),
+          }),
+          this.icon.addSvg({
+            name: icon.name.replace('$color', UPDATE_STATUS.DELAY),
+            svg: icon.svg.replace('$color', `#FFFD6C`),
+          }),
+          this.icon.addSvg({
+            name: icon.name.replace('$color', UPDATE_STATUS.OFFLINE),
+            svg: icon.svg.replace('$color', `#999999`),
+          }),
+        ])
+      })
       this.emit('loaded', this.map)
     })
   }

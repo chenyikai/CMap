@@ -17,6 +17,7 @@ export class Tooltip extends Module {
   private mark: Marker | null = null
 
   zoomFunc: () => void = this._zoom.bind(this)
+  zoomEndFunc: () => void = this._zoom.bind(this)
 
   constructor(map: Map, options: ITooltipOptions) {
     super(map)
@@ -54,12 +55,14 @@ export class Tooltip extends Module {
     this.visible = false
     this.render()
     this.context.map.off('zoom', this.zoomFunc)
+    this.context.map.off('zoomend', this.zoomFunc)
   }
 
   show(): void {
     this.visible = true
     this.render()
     this.context.map.on('zoom', this.zoomFunc)
+    this.context.map.on('zoomend', this.zoomFunc)
   }
 
   setAnchor(anchor: ITooltipOptions['anchor']): void {
@@ -68,6 +71,7 @@ export class Tooltip extends Module {
       this.mark = null
     }
     this.context.map.off('zoom', this.zoomFunc)
+    this.context.map.off('zoomend', this.zoomFunc)
 
     this.options.anchor = anchor
     this._create()
@@ -158,8 +162,9 @@ export class Tooltip extends Module {
     }
 
     this.visible = false
-    this.context.map.off('zoom', this.zoomFunc)
     this.connectLine()
+    this.context.map.off('zoom', this.zoomFunc)
+    this.context.map.off('zoomend', this.zoomFunc)
   }
 
   _create(): void {
@@ -173,6 +178,7 @@ export class Tooltip extends Module {
     if (this.visible) {
       this.render()
       this.context.map.on('zoom', this.zoomFunc)
+      this.context.map.on('zoomend', this.zoomFunc)
     }
   }
 
@@ -224,9 +230,12 @@ export class Tooltip extends Module {
 
     const endPoint = this.connectPoint()
     if (!endPoint || !this.visible) {
-      const emptyFeature: GeoJSON.Feature<null> = {
+      const emptyFeature: GeoJSON.Feature<GeoJSON.Point> = {
         type: 'Feature',
-        geometry: null,
+        geometry: {
+          type: 'Point',
+          coordinates: [0, 0],
+        },
         id,
         properties: {},
       }

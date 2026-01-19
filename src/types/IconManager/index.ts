@@ -4,6 +4,11 @@ export interface Icon {
   options?: Partial<StyleImageMetadata>
 }
 
+export interface SvgIcon {
+  name: string
+  svg: string
+}
+
 interface StyleImageMetadata {
   pixelRatio: number
   sdf: boolean

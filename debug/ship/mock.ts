@@ -1,4 +1,4 @@
-export const shipData = [
+export const staticShipData = [
   {
     "mmsi": "412766860",
     "hdg": 67,

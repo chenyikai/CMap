@@ -13,10 +13,10 @@ export interface IBaseShipOptions {
   hdg: number
   cog: number
   rot: number
-  type?: string
+  readonly type: string
   statusId?: number
   status?: string
-  time: string
+  time: Date
   tooltip?: boolean
   immediate?: boolean
   realZoom?: number

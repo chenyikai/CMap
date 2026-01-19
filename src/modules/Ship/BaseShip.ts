@@ -2,12 +2,16 @@ import type * as GeoJSON from 'geojson'
 import type { Map, MapMouseEvent, Point } from 'mapbox-gl'
 
 import { Module } from '@/core/Module'
+import type { UPDATE_STATUS } from '@/modules/Ship/vars.ts'
+import type { IAisShipOptions } from '@/types/Ship/AisShip.ts'
 import type { IBaseShipOptions, Orientation, Shape } from '@/types/Ship/BaseShip.ts'
 
 export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
-  protected options: T
+  public options: T
   static readonly SOURCE: string = 'mapbox-gl-ship-source'
   static readonly NAME: string = 'Base'
+
+  visible = true
 
   protected constructor(map: Map, options: T) {
     super(map)
@@ -18,13 +22,16 @@ export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
   override destroy(): void {
     throw new Error('Method not implemented.')
   }
+
   public abstract override onAdd(): void
 
   public abstract override onRemove(): void
 
   abstract get id(): IBaseShipOptions['id']
 
-  abstract get position(): IBaseShipOptions['position']
+  abstract get updateStatus(): UPDATE_STATUS
+
+  abstract position(): IBaseShipOptions['position']
 
   abstract get direction(): IBaseShipOptions['direction']
 
@@ -37,6 +44,8 @@ export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
   abstract remove(): void
 
   abstract setTooltip(): void
+
+  abstract update(options: IAisShipOptions): void
 
   abstract focus(): void
 
@@ -76,5 +85,9 @@ export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
     } else {
       return false
     }
+  }
+
+  public getName(): string {
+    return BaseShip.NAME
   }
 }

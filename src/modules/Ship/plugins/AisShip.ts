@@ -1,4 +1,5 @@
 import { lineString, lineToPolygon, point, transformRotate } from '@turf/turf'
+import dayjs from 'dayjs'
 import type * as GeoJSON from 'geojson'
 import type { LngLat, Map } from 'mapbox-gl'
 import { Point } from 'mapbox-gl'
@@ -6,7 +7,7 @@ import type { BBox } from 'rbush'
 
 import { Tooltip } from '@/core/Tooltip/index.ts'
 import { BaseShip } from '@/modules/Ship/BaseShip.ts'
-import { LAYER_LIST, NAME, SHIP_ICON, SHIP_SOURCE_NAME } from '@/modules/Ship/vars.ts'
+import { LAYER_LIST, NAME, SHIP_SOURCE_NAME, UPDATE_STATUS } from '@/modules/Ship/vars.ts'
 import type { IAisShipOptions } from '@/types/Ship/AisShip.ts'
 import type { Orientation, Shape } from '@/types/Ship/BaseShip'
 import { distanceToPx } from '@/utils/util.ts'
@@ -24,7 +25,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
     if (this.options.immediate) {
       this.tooltip = new Tooltip(this.context.map, {
         id: this.id,
-        position: this.position,
+        position: this.position(),
         className: 'mapbox-gl-ship-name-tooltip',
         offsetX: 5,
         offsetY: 25,
@@ -37,8 +38,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  public override async onAdd(): Promise<void> {
+  public override onAdd(): void {
     this.context.register.addSource(SHIP_SOURCE_NAME, {
       type: 'geojson',
       dynamic: true,
@@ -52,7 +52,8 @@ export class AisShip extends BaseShip<IAisShipOptions> {
       this.context.register.addLayer(layer)
     })
 
-    await this.context.iconManage.load(SHIP_ICON)
+    // SHIP_ICON.forEach((icon) => this.context.iconManage.addSvg(icon))
+    // await this.context.iconManage.load(SHIP_ICON)
   }
   public override onRemove(): void {
     throw new Error('Method not implemented.')
@@ -61,7 +62,21 @@ export class AisShip extends BaseShip<IAisShipOptions> {
   override get id(): string | number {
     return this.options.id
   }
-  override get position(): LngLat {
+
+  override get updateStatus(): UPDATE_STATUS {
+    const betweenTime = Date.now() - dayjs(Number(this.options.time)).valueOf()
+    if (betweenTime <= 1800000) {
+      return UPDATE_STATUS.ONLINE
+    } else if (betweenTime > 1800000 && betweenTime <= 7200000) {
+      return UPDATE_STATUS.DELAY
+    } else if (betweenTime > 7200000) {
+      return UPDATE_STATUS.OFFLINE
+    } else {
+      return UPDATE_STATUS.OFFLINE
+    }
+  }
+
+  override position(): LngLat {
     const zoom = this.options.realZoom ?? 16
     if (this.context.map.getZoom() >= zoom) {
       if (this.offset().x === 0 && this.offset().y === 0) {
@@ -118,7 +133,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
 
   override getShape(): Shape | null {
     if (this.options.width && this.options.height) {
-      const { x, y }: Point = this.context.map.project(this.position)
+      const { x, y }: Point = this.context.map.project(this.position())
       const ex: number = distanceToPx(this.context.map, this.options.width) / 2
       const ey: number = distanceToPx(this.context.map, this.options.height) / 2
 
@@ -146,12 +161,20 @@ export class AisShip extends BaseShip<IAisShipOptions> {
     return this.context.map.getZoom() >= zoom ? this.real() : this.icon()
   }
   override remove(): void {
-    throw new Error('Method not implemented.')
+    this.tooltip?.remove()
+
+    const emptyFeature: GeoJSON.Feature<null> = {
+      type: 'Feature',
+      geometry: null,
+      id: this.id,
+      properties: {},
+    }
+    this.context.register.updateGeoJSONData(AisShip.SOURCE, emptyFeature)
   }
   override setTooltip(): void {
     this.tooltip = new Tooltip(this.context.map, {
       id: this.id,
-      position: this.position,
+      position: this.position(),
       className: 'mapbox-gl-ship-name-tooltip',
       offsetX: 5,
       offsetY: 25,
@@ -159,6 +182,12 @@ export class AisShip extends BaseShip<IAisShipOptions> {
       anchor: 'bottom-right',
     })
   }
+
+  override update(options: IAisShipOptions): void {
+    this.options = options
+    this.render()
+  }
+
   override focus(): void {
     throw new Error('Method not implemented.')
   }
@@ -172,7 +201,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
     if (this.options.icon) {
       icon = this.options.icon
     } else {
-      icon = `${AisShip.NAME}-${this.orientation}`
+      icon = `${AisShip.NAME}-${this.updateStatus}-${this.orientation}`
 
       if (state?.hover || state?.focus) {
         icon = `${icon}-active`
@@ -180,7 +209,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
     }
 
     return point<IAisShipOptions>(
-      this.position.toArray(),
+      this.position().toArray(),
       {
         ...this.options,
         icon,
@@ -243,7 +272,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
       }) as GeoJSON.Feature<GeoJSON.Polygon, IAisShipOptions>
 
       ship = transformRotate<GeoJSON.Feature<GeoJSON.Polygon>>(ship, this.direction, {
-        pivot: this.position.toArray(),
+        pivot: this.position().toArray(),
       }) as GeoJSON.Feature<GeoJSON.Polygon, IAisShipOptions>
 
       ship.id = this.id
@@ -252,7 +281,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
   }
 
   override render(): void {
-    this.tooltip?.setLngLat(this.position)
+    this.tooltip?.setLngLat(this.position())
     this.tooltip?.render()
 
     this.context.register.updateGeoJSONData(AisShip.SOURCE, this.getFeature())

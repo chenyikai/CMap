@@ -2,8 +2,9 @@ import type { Map } from 'mapbox-gl'
 
 import { cacheKey } from '@/config'
 import Cache from '@/core/Cache'
-import type { Icon, Image, result } from '@/types/IconManager'
+import type { Icon, Image, result, SvgIcon } from '@/types/IconManager'
 import { RESULT_CODE } from '@/types/IconManager'
+import { convertSvgToImageObjects } from '@/utils/util.ts'
 
 class IconManager {
   static SUCCESS = RESULT_CODE.SUCCESS
@@ -35,34 +36,49 @@ class IconManager {
     return { success, error }
   }
 
+  async addSvg(icon: SvgIcon): Promise<void> {
+    if (!this.has(icon.name)) {
+      const data = await convertSvgToImageObjects(icon.svg)
+      this._cache.set({
+        name: icon.name,
+        content: { width: data.image.width, height: data.image.height, image: data.image },
+      })
+
+      this._map.addImage(icon.name, data.image)
+    } else {
+      console.log('有了')
+    }
+  }
+
   add(icon: Icon): Promise<result> {
     return new Promise((resolve, reject) => {
-      this._map.loadImage(icon.url, (err, image) => {
-        if (err) {
-          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-          reject(this.error(icon, err))
-          return
-        }
+      if (!this.has(icon.name)) {
+        // const url = new URL(icon.url, import.meta.url).href
+        // console.log(url, 'url')
+        this._map.loadImage(icon.url, (err, image) => {
+          if (err) {
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+            reject(this.error(icon, err))
+            return
+          }
 
-        if (this._map.hasImage(icon.name)) {
-          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-          reject(this.error(icon, 'The image has been loaded！'))
-          return
-        }
-
-        if (image) {
-          this._cache.set({
-            name: icon.name,
-            content: { width: image.width, height: image.height, image },
-          })
-          this._map.addImage(icon.name, image, icon.options)
-          resolve(this.success(icon))
-        } else {
-          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-          reject(this.error(icon, 'The image has not found！'))
-          return
-        }
-      })
+          if (image) {
+            this._cache.set({
+              name: icon.name,
+              content: { width: image.width, height: image.height, image },
+            })
+            this._map.addImage(icon.name, image, icon.options)
+            resolve(this.success(icon))
+          } else {
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+            reject(this.error(icon, 'The image has not found！'))
+            return
+          }
+        })
+      } else {
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+        reject(this.error(icon, 'The image has been loaded！'))
+      }
     })
   }
 

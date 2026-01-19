@@ -6,7 +6,7 @@ import { SHIP_ICON_LAYER_NAME, SHIP_REAL_LAYER_NAME } from '@/modules/Ship/vars.
 import type { IAisShipOptions } from '@/types/Ship/AisShip.ts'
 
 export class ResidentEvent extends EventState {
-  protected readonly ships: AisShip[]
+  protected readonly ships: AisShip[] = []
   protected hoverId: IAisShipOptions['id'] | null | undefined = null
   protected _click: OmitThisParameter<(e: MapMouseEvent) => void> = (): void => {
     /* empty */
@@ -21,10 +21,12 @@ export class ResidentEvent extends EventState {
     /* empty */
   }
 
-  constructor(map: Map, ships: AisShip[]) {
+  constructor(map: Map, ships?: AisShip[]) {
     super(map)
 
-    this.ships = ships
+    if (ships) {
+      this.ships = ships
+    }
   }
   onAdd(): void {
     this._click = this.onClick.bind(this)
@@ -40,7 +42,7 @@ export class ResidentEvent extends EventState {
     this.context.map.on('mousemove', SHIP_REAL_LAYER_NAME, this._move)
     this.context.map.on('mouseleave', SHIP_REAL_LAYER_NAME, this._leave)
 
-    this.context.map.on('zoomend', SHIP_ICON_LAYER_NAME, this._zoomEnd)
+    this.context.map.on('zoomend', this._zoomEnd)
   }
 
   onRemove(): void {
@@ -52,7 +54,23 @@ export class ResidentEvent extends EventState {
     this.context.map.off('mousemove', SHIP_REAL_LAYER_NAME, this._move)
     this.context.map.off('mouseleave', SHIP_REAL_LAYER_NAME, this._leave)
 
-    this.context.map.off('click', SHIP_REAL_LAYER_NAME, this._click)
+    this.context.map.off('zoomend', this._zoomEnd)
+  }
+
+  add(ship: AisShip): void {
+    const data = this.findShip(ship.id)
+    if (data) {
+      ship.update(data.options)
+    } else {
+      this.ships.push(ship)
+    }
+  }
+
+  remove(id: IAisShipOptions['id']): void {
+    const i = this.ships.findIndex((item) => item.id === id)
+    if (i !== -1) {
+      this.ships.splice(i, 1)
+    }
   }
 
   onZoomEnd(): void {

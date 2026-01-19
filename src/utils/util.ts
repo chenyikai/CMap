@@ -30,3 +30,71 @@ export function getPointScope(map: Map, x: number, y: number, width: number): BB
     ]),
   ).bbox!
 }
+
+export async function convertSvgToImageObjects(
+  svgString: string,
+  width?: number,
+  height?: number,
+): Promise<{
+  image: HTMLImageElement
+  bitmap: ImageBitmap
+  imageData: ImageData
+}> {
+  // 1. 创建一个临时的Image对象并加载SVG
+  const loadSvgAsImage = (svgStr: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      // 将SVG字符串转换为Blob URL
+      const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+
+      const img = new Image()
+      img.crossOrigin = 'anonymous' // 重要：避免转换后canvas被"污染"
+
+      img.onload = (): void => {
+        URL.revokeObjectURL(url) // 清理URL，释放内存
+        resolve(img)
+      }
+
+      img.onerror = (event): void => {
+        URL.revokeObjectURL(url)
+        reject(new Error(`SVG图片加载失败：${JSON.stringify(event)}`))
+      }
+
+      img.src = url
+    })
+  }
+
+  const svgImage = await loadSvgAsImage(svgString)
+
+  // 2. 确定输出尺寸
+  const outputWidth = (width ?? svgImage.naturalWidth) || svgImage.width || 300
+  const outputHeight = (height ?? svgImage.naturalHeight) || svgImage.height || 150
+
+  // 3. 绘制到Canvas
+  const canvas = document.createElement('canvas')
+  canvas.width = outputWidth
+  canvas.height = outputHeight
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    throw new Error('无法获取Canvas 2D上下文')
+  }
+
+  // 清空并绘制SVG
+  ctx.clearRect(0, 0, outputWidth, outputHeight)
+  ctx.drawImage(svgImage, 0, 0, outputWidth, outputHeight)
+
+  // 4. 并行转换获取所有目标格式
+  const [bitmap, imageData] = await Promise.all([
+    // 转换为ImageBitmap
+    createImageBitmap(canvas),
+    // 转换为ImageData
+    Promise.resolve(ctx.getImageData(0, 0, outputWidth, outputHeight)),
+  ])
+
+  return {
+    image: svgImage, // HTMLImageElement
+    bitmap: bitmap, // ImageBitmap
+    imageData: imageData, // ImageData
+  }
+}
