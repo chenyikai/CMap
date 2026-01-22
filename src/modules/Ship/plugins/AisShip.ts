@@ -12,25 +12,27 @@ import type { Orientation, Shape } from '@/types/Ship/BaseShip'
 import { distanceToPx } from '@/utils/util.ts'
 
 export class AisShip extends BaseShip<IAisShipOptions> {
-  static override readonly SOURCE: string = SHIP_SOURCE_NAME
-  static override readonly NAME: string = NAME
+  override readonly SOURCE: string = SHIP_SOURCE_NAME
+  override readonly NAME: string = NAME
 
   public tooltip: Tooltip | null = null
 
   constructor(map: Map, options: IAisShipOptions) {
     super(map, options)
 
-    if (this.options.immediate) {
-      this.tooltip = new Tooltip(this.context.map, {
-        id: this.id,
-        position: this.position(),
-        className: 'mapbox-gl-ship-name-tooltip',
-        offsetX: 5,
-        offsetY: 25,
-        element: this.label(),
-        anchor: 'bottom-right',
-        visible: true,
-      })
+    if (this.options.tooltip) {
+      this.setTooltip(
+        new Tooltip(this.context.map, {
+          id: this.id,
+          position: this.position(),
+          className: 'mapbox-gl-ship-name-tooltip',
+          offsetX: 5,
+          offsetY: 25,
+          element: this.label(),
+          anchor: 'bottom-right',
+          visible: true,
+        }),
+      )
 
       this.render()
     }
@@ -81,7 +83,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
     if (this.options.icon) {
       icon = this.options.icon
     } else {
-      icon = `${AisShip.NAME}-${this.updateStatus}-${this.orientation}`
+      icon = `${this.NAME}-${this.updateStatus}-${this.orientation}`
 
       if (state?.hover || state?.focus) {
         icon = `${icon}-active`
@@ -176,18 +178,10 @@ export class AisShip extends BaseShip<IAisShipOptions> {
       id: this.id,
       properties: {},
     }
-    this.context.register.updateGeoJSONData(AisShip.SOURCE, emptyFeature)
+    this.context.register.updateGeoJSONData(this.SOURCE, emptyFeature)
   }
-  override setTooltip(): void {
-    this.tooltip = new Tooltip(this.context.map, {
-      id: this.id,
-      position: this.position(),
-      className: 'mapbox-gl-ship-name-tooltip',
-      offsetX: 5,
-      offsetY: 25,
-      element: this.label(),
-      anchor: 'bottom-right',
-    })
+  override setTooltip(tooltip: Tooltip): void {
+    this.tooltip = tooltip
   }
 
   override update(options: IAisShipOptions): void {
@@ -298,7 +292,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
     this.tooltip?.setLngLat(this.position())
     this.tooltip?.render()
 
-    this.context.register.updateGeoJSONData(AisShip.SOURCE, this.getFeature())
+    this.context.register.updateGeoJSONData(this.SOURCE, this.getFeature())
 
     if (this.isFocus) {
       const icon = this.context.iconManage.getImage(this.getIconName())

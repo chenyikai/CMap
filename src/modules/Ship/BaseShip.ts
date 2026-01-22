@@ -2,14 +2,15 @@ import type * as GeoJSON from 'geojson'
 import type { Map, MapMouseEvent, Point } from 'mapbox-gl'
 
 import { Module } from '@/core/Module'
+import type { Tooltip } from '@/core/Tooltip'
 import type { UPDATE_STATUS } from '@/modules/Ship/vars.ts'
 import type { IAisShipOptions } from '@/types/Ship/AisShip.ts'
 import type { IBaseShipOptions, Orientation, Shape } from '@/types/Ship/BaseShip.ts'
 
 export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
   public options: T
-  static readonly SOURCE: string = 'mapbox-gl-ship-source'
-  static readonly NAME: string = 'Base'
+  readonly SOURCE: string = 'mapbox-gl-ship-source'
+  readonly NAME: string = 'Base'
 
   visible = true
 
@@ -53,7 +54,7 @@ export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
 
   abstract remove(): void
 
-  abstract setTooltip(): void
+  abstract setTooltip(tooltip: Tooltip): void
 
   abstract update(options: IAisShipOptions): void
 
@@ -78,7 +79,7 @@ export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
   public setState(states: Record<string, unknown>): void {
     this.context.map.setFeatureState(
       {
-        source: BaseShip.SOURCE,
+        source: this.SOURCE,
         id: this.id,
       },
       states,
@@ -87,7 +88,7 @@ export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
 
   public getState(): Record<string, unknown> | null | undefined {
     return this.context.map.getFeatureState({
-      source: BaseShip.SOURCE,
+      source: this.SOURCE,
       id: this.id,
     })
   }
@@ -102,6 +103,6 @@ export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
   }
 
   public getName(): string {
-    return BaseShip.NAME
+    return this.NAME
   }
 }

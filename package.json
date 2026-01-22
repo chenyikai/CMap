@@ -1,6 +1,6 @@
 {
   "name": "cmap-core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "files": [
     "dist",
@@ -16,6 +16,19 @@
       "require": "./dist/index.umd.js"
     },
     "./style.css": "./dist/cmap-core.css"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chenyikai/cmap-core.git"
+  },
+  "homepage": "https://github.com/chenyikai/cmap-core#readme",
+  "bugs": {
+    "url": "https://github.com/chenyikai/cmap-core/issues"
   },
   "scripts": {
     "dev": "vite",
