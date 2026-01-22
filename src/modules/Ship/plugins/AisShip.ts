@@ -15,8 +15,6 @@ export class AisShip extends BaseShip<IAisShipOptions> {
   override readonly SOURCE: string = SHIP_SOURCE_NAME
   override readonly NAME: string = NAME
 
-  public tooltip: Tooltip | null = null
-
   constructor(map: Map, options: IAisShipOptions) {
     super(map, options)
 

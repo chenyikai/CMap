@@ -1,25 +1,30 @@
-import type { Map } from 'mapbox-gl'
+import type { Map as MapboxGlMap } from 'mapbox-gl'
 
 import Collision from '@/core/Collision'
 import { Module } from '@/core/Module'
 import type { Tooltip } from '@/core/Tooltip'
+import type { BaseShip } from '@/modules/Ship/BaseShip.ts'
 import { ResidentEvent } from '@/modules/Ship/Events/ResidentEvent'
-import { AisShip } from '@/modules/Ship/plugins/AisShip.ts'
 import type { CollisionItemOptions } from '@/types/Collision/item.ts'
+import type { IShipOptions } from '@/types/Ship'
 import type { IAisShipOptions } from '@/types/Ship/AisShip.ts'
+import type { BaseShipConstructor } from '@/types/Ship/BaseShip.ts'
 
 class Ship extends Module {
-  // options: IShipOptions
-  ships: AisShip[] = []
+  options: IShipOptions
+  ships: BaseShip<any>[] = []
   event: ResidentEvent
 
+  private pluginRegistry = new Map<string, BaseShipConstructor>()
   private collision: Collision
 
-  constructor(map: Map) {
+  constructor(map: MapboxGlMap, options: IShipOptions) {
     super(map)
-    // this.options = options
+    this.options = options
     this.collision = new Collision(this.context.map)
     this.event = new ResidentEvent(map)
+
+    this.registerPlugins(options.plugins)
   }
 
   override onAdd(): void {
@@ -33,9 +38,15 @@ class Ship extends Module {
     return this.ships.flatMap((ship) => ship.tooltip ?? [])
   }
 
-  // private get plugins(): IShipOptions['plugins'] {
-  //   return this.options.plugins
-  // }
+  private registerPlugins(plugins: BaseShipConstructor[] = []): void {
+    plugins.forEach((PluginClass) => {
+      if (PluginClass.NAME) {
+        this.pluginRegistry.set(PluginClass.NAME, PluginClass)
+      } else {
+        console.warn('Ship Plugin missing static NAME property:', PluginClass)
+      }
+    })
+  }
 
   private createCollisions(): CollisionItemOptions[] {
     return this.tooltips.map((tooltip) => {
@@ -59,23 +70,36 @@ class Ship extends Module {
     })
   }
 
-  add(data: IAisShipOptions): AisShip {
-    const ship: AisShip = new AisShip(this.context.map, data)
+  add(data: IAisShipOptions): BaseShip<any> | undefined {
+    const Constructor = this.pluginRegistry.get(data.type)
+
+    if (!Constructor) {
+      console.warn(`No plugin registered for ship type: "${data.type}"`)
+      return undefined
+    }
+
+    const ship = new Constructor(this.context.map, data)
     this.ships.push(ship)
     this.event.add(ship)
 
     return ship
   }
 
-  load(list: IAisShipOptions[]): AisShip[] {
+  load(list: IAisShipOptions[]): BaseShip<any>[] {
     this.removeAll()
 
-    this.ships = list.map((item) => this.add(item))
+    const newShips: BaseShip<any>[] = []
+    list.forEach((item) => {
+      const ship = this.add(item)
+      if (ship) {
+        newShips.push(ship)
+      }
+    })
 
     this.render()
     this.collisionTooltip()
 
-    return this.ships
+    return newShips
   }
 
   remove(id: IAisShipOptions['id']): void {
@@ -103,7 +127,7 @@ class Ship extends Module {
     })
   }
 
-  get(id: IAisShipOptions['id']): AisShip | undefined {
+  get(id: string | number): BaseShip<any> | undefined {
     return this.ships.find((item) => item.id === id)
   }
 

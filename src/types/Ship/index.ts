@@ -1,7 +1,5 @@
-// import type { BaseShipConstructor } from '@/types/Ship/BaseShip.ts'
-
-import type { AisShip } from '@/modules/Ship/plugins/AisShip.ts'
+import type { BaseShipConstructor } from '@/types/Ship/BaseShip.ts'
 
 export interface IShipOptions {
-  plugins?: AisShip[]
+  plugins?: BaseShipConstructor[]
 }

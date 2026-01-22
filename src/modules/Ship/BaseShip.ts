@@ -12,6 +12,8 @@ export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
   readonly SOURCE: string = 'mapbox-gl-ship-source'
   readonly NAME: string = 'Base'
 
+  public tooltip: Tooltip | null = null
+
   visible = true
 
   protected constructor(map: Map, options: T) {
