@@ -27,6 +27,7 @@ export interface IBaseShipOptions {
   icon?: string
   minIconSize?: number
   maxIconSize?: number
+  props?: Record<string, any>
 }
 
 /**

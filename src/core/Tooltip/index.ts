@@ -5,7 +5,7 @@ import { Marker, Point } from 'mapbox-gl'
 import type { BBox } from 'rbush'
 
 import { Module } from '@/core/Module'
-import type { AllAnchor, ITooltipOptions } from '@/types/Toolip'
+import type { AllAnchor, ITooltipOptions, SimpleAnchor } from '@/types/Toolip'
 
 import { CONNECT_LINE_LAYER, TOOLTIP_SOURCE_NAME } from './vars.ts'
 
@@ -16,8 +16,9 @@ export class Tooltip extends Module {
 
   private mark: Marker | null = null
 
-  zoomFunc: () => void = this._zoom.bind(this)
-  zoomEndFunc: () => void = this._zoom.bind(this)
+  private zoom = (): void => {
+    this.render()
+  }
 
   constructor(map: Map, options: ITooltipOptions) {
     super(map)
@@ -54,15 +55,15 @@ export class Tooltip extends Module {
   hide(): void {
     this.visible = false
     this.render()
-    this.context.map.off('zoom', this.zoomFunc)
-    this.context.map.off('zoomend', this.zoomFunc)
+    this.context.map.off('zoom', this.zoom)
+    this.context.map.off('zoomend', this.zoom)
   }
 
   show(): void {
     this.visible = true
     this.render()
-    this.context.map.on('zoom', this.zoomFunc)
-    this.context.map.on('zoomend', this.zoomFunc)
+    this.context.map.on('zoom', this.zoom)
+    this.context.map.on('zoomend', this.zoom)
   }
 
   setAnchor(anchor: ITooltipOptions['anchor']): void {
@@ -70,13 +71,22 @@ export class Tooltip extends Module {
       this.mark.remove()
       this.mark = null
     }
-    this.context.map.off('zoom', this.zoomFunc)
-    this.context.map.off('zoomend', this.zoomFunc)
+    this.context.map.off('zoom', this.zoom)
+    this.context.map.off('zoomend', this.zoom)
 
     this.options.anchor = anchor
     this._create()
 
     this.render()
+  }
+
+  getSimpleBbox(): SimpleAnchor {
+    return {
+      'top-left': this.getBbox('top-left'),
+      'top-right': this.getBbox('top-right'),
+      'bottom-left': this.getBbox('bottom-left'),
+      'bottom-right': this.getBbox('bottom-right'),
+    }
   }
 
   getAllBbox(): AllAnchor {
@@ -163,8 +173,8 @@ export class Tooltip extends Module {
 
     this.visible = false
     this.connectLine()
-    this.context.map.off('zoom', this.zoomFunc)
-    this.context.map.off('zoomend', this.zoomFunc)
+    this.context.map.off('zoom', this.zoom)
+    this.context.map.off('zoomend', this.zoom)
   }
 
   _create(): void {
@@ -177,8 +187,8 @@ export class Tooltip extends Module {
 
     if (this.visible) {
       this.render()
-      this.context.map.on('zoom', this.zoomFunc)
-      this.context.map.on('zoomend', this.zoomFunc)
+      this.context.map.on('zoom', this.zoom)
+      this.context.map.on('zoomend', this.zoom)
     }
   }
 
@@ -241,7 +251,7 @@ export class Tooltip extends Module {
         properties: {},
       }
 
-      this.context.register.updateGeoJSONData(TOOLTIP_SOURCE_NAME, emptyFeature)
+      this.context.register.setGeoJSONData(TOOLTIP_SOURCE_NAME, emptyFeature)
       return
     }
 
@@ -255,7 +265,7 @@ export class Tooltip extends Module {
       },
     )
 
-    this.context.register.updateGeoJSONData(TOOLTIP_SOURCE_NAME, feature)
+    this.context.register.setGeoJSONData(TOOLTIP_SOURCE_NAME, feature)
   }
 
   connectPoint(): LngLat | null {
@@ -294,11 +304,5 @@ export class Tooltip extends Module {
 
     this.connectLine()
     return this
-  }
-
-  _zoom(): void {
-    if (!this.mark || !this.visible) return
-
-    this.connectLine()
   }
 }

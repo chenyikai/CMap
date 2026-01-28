@@ -1,6 +1,6 @@
 {
   "name": "cmap-core",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "type": "module",
   "files": [
     "dist",
@@ -73,7 +73,7 @@
     "eventemitter3": "^5.0.1",
     "geojson": "^0.5.0",
     "lodash-es": "^4.17.21",
-    "mapbox-gl": "^3.18.0",
+    "mapbox-gl": "^3.18.1",
     "qs": "^6.14.0",
     "rbush": "^4.0.1",
     "uuid": "^11.0.3",

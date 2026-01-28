@@ -36,7 +36,24 @@ class IconManager {
     return { success, error }
   }
 
-  async addSvg(icon: SvgIcon): Promise<void> {
+  async loadSvg(icons: SvgIcon[]): Promise<{ success: result[]; error: result[] }> {
+    const results = await Promise.allSettled(icons.map((icon) => this.addSvg(icon)))
+
+    const success: result[] = []
+    const error: result[] = []
+
+    results.forEach((item) => {
+      if (item.status === 'fulfilled') {
+        success.push(item.value)
+      } else {
+        error.push(item.reason as result)
+      }
+    })
+
+    return { success, error }
+  }
+
+  async addSvg(icon: SvgIcon): Promise<result> {
     if (!this.has(icon.name)) {
       const data = await convertSvgToImageObjects(icon.svg)
       this._cache.set({
@@ -45,8 +62,9 @@ class IconManager {
       })
 
       this._map.addImage(icon.name, data.image)
+      return this.success(icon)
     } else {
-      console.log('有了')
+      return this.error(icon, 'The image has been loaded！')
     }
   }
 
@@ -128,7 +146,7 @@ class IconManager {
     }
   }
 
-  success(icon: Icon): result {
+  success(icon: Icon | SvgIcon): result {
     return {
       code: IconManager.SUCCESS,
       data: icon,
@@ -136,7 +154,7 @@ class IconManager {
     }
   }
 
-  error(icon: Icon, err: string | Error): result {
+  error(icon: Icon | SvgIcon, err: string | Error): result {
     return {
       code: IconManager.FAIL,
       data: icon,

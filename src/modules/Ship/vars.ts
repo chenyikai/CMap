@@ -12,6 +12,10 @@ export const SHIP_REAL_LAYER_NAME = 'mapbox-gl-ship-real-layer'
 
 export const SHIP_REAL_OUTLINE_LAYER_NAME = 'mapbox-gl-ship-real-outline-layer'
 
+export const MIN_ICON_SIZE = 0.2
+
+export const MAX_ICON_SIZE = 0.5
+
 export enum UPDATE_STATUS {
   ONLINE = 'Online',
   DELAY = 'Delay',
@@ -38,11 +42,9 @@ export const SHIP_ICON_LAYER: LayerSpecification = {
       ['linear'],
       ['zoom'],
       0,
-      // ['case', ['has', ['get', 'minIconSize']], ['get', 'minIconSize'], 0.2],
-      0.2,
+      ['coalesce', ['get', 'minIconSize'], 0.2],
       19,
-      // ['case', ['has', ['get', 'maxIconSize']], ['get', 'maxIconSize'], 0.5],
-      0.5,
+      ['coalesce', ['get', 'maxIconSize'], 0.5],
     ],
   },
 }

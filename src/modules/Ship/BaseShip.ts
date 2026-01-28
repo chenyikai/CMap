@@ -26,6 +26,7 @@ export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
   override destroy(): void {
     throw new Error('Method not implemented.')
   }
+
   get isFocus(): boolean {
     const state = this.getState()
     if (state) {
@@ -58,6 +59,8 @@ export abstract class BaseShip<T extends IBaseShipOptions> extends Module {
   abstract remove(): void
 
   abstract setTooltip(tooltip: Tooltip): void
+
+  abstract removeTooltip(): void
 
   abstract update(options: IAisShipOptions): void
 

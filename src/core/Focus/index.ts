@@ -6,6 +6,7 @@ import type { GeoJSONSource } from 'mapbox-gl'
 import type { Map } from 'mapbox-gl'
 import { v4 } from 'uuid'
 
+import ResourceRegister from '@/core/ResourceRegister'
 import type { FocusItem, IFocusOptions } from '@/types/Focus'
 import { distanceToPx } from '@/utils/util.ts'
 
@@ -14,6 +15,7 @@ import { FOCUS_LAYER, FOCUS_SOURCE_NAME } from './vars.ts'
 class Focus extends EventEmitter {
   private readonly map: Map
   focusItems: FocusItem[] = []
+  private register: ResourceRegister
 
   zoomendFunc = this._zoomend.bind(this)
 
@@ -21,6 +23,7 @@ class Focus extends EventEmitter {
     super()
 
     this.map = map
+    this.register = new ResourceRegister(map)
     this.onAdd()
   }
 
@@ -29,7 +32,7 @@ class Focus extends EventEmitter {
   }
 
   onAdd(): void {
-    this.map.addSource(FOCUS_SOURCE_NAME, {
+    this.register.addSource(FOCUS_SOURCE_NAME, {
       type: 'geojson',
       dynamic: true,
       data: {
@@ -38,7 +41,7 @@ class Focus extends EventEmitter {
       },
     })
 
-    this.map.addLayer(FOCUS_LAYER)
+    this.register.addLayer(FOCUS_LAYER)
   }
   onRemove(): void {
     this.removeAll()

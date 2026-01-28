@@ -168,7 +168,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
     return this.context.map.getZoom() >= zoom ? this.real() : this.icon()
   }
   override remove(): void {
-    this.tooltip?.remove()
+    this.removeTooltip()
 
     const emptyFeature: GeoJSON.Feature<null> = {
       type: 'Feature',
@@ -176,10 +176,17 @@ export class AisShip extends BaseShip<IAisShipOptions> {
       id: this.id,
       properties: {},
     }
-    this.context.register.updateGeoJSONData(this.SOURCE, emptyFeature)
+    this.context.register.setGeoJSONData(this.SOURCE, emptyFeature)
+
+    this.context.map.triggerRepaint()
   }
   override setTooltip(tooltip: Tooltip): void {
     this.tooltip = tooltip
+  }
+
+  override removeTooltip(): void {
+    this.tooltip?.remove()
+    this.tooltip = null
   }
 
   override update(options: IAisShipOptions): void {
@@ -290,7 +297,7 @@ export class AisShip extends BaseShip<IAisShipOptions> {
     this.tooltip?.setLngLat(this.position())
     this.tooltip?.render()
 
-    this.context.register.updateGeoJSONData(this.SOURCE, this.getFeature())
+    this.context.register.setGeoJSONData(this.SOURCE, this.getFeature())
 
     if (this.isFocus) {
       const icon = this.context.iconManage.getImage(this.getIconName())

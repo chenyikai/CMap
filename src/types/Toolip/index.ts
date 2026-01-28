@@ -24,6 +24,13 @@ export interface AllAnchor {
   'bottom-right': BBox
 }
 
+export interface SimpleAnchor {
+  'top-left': BBox
+  'top-right': BBox
+  'bottom-left': BBox
+  'bottom-right': BBox
+}
+
 export interface ITooltipOptions {
   id: string | number
   visible?: boolean

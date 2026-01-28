@@ -25,11 +25,11 @@ class CollisionItem {
     'top-right',
     'bottom-left',
     'bottom-right',
-    'center',
-    'top',
-    'bottom',
-    'left',
-    'right',
+    // 'center',
+    // 'top',
+    // 'bottom',
+    // 'left',
+    // 'right',
   ]
 
   _options: CollisionItemOptions

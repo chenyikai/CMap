@@ -11,7 +11,7 @@ let ship: Ship | null = null
 
 export function initShip(cMap: CMap) {
   cMap.mapLoaded().then(map => {
-    ship = new Ship(map, {
+    window.ship = ship = new Ship(map, {
       plugins: [AisShip]
     });
 
@@ -19,10 +19,10 @@ export function initShip(cMap: CMap) {
       // ship!.select('413363020')
     }, 2000)
 
-    getShipData(map, true)
+    getShipData(map, false)
 
     map.on('moveend', () => {
-      getShipData(map, true);
+      getShipData(map, false);
     });
   })
 }
@@ -68,11 +68,11 @@ function getShipData(map: Map, isStatic: boolean = false) {
   axios
     .post('/ship/rest/ehhship/getShipDataList', getBounds(map), {
       headers: {
-        Authorization: 'bearer 9f617ea4-4343-4cf5-95ab-d9c191923be9',
+        Authorization: 'bearer d018ebb6-09cc-4f56-832d-8a521abd54d2',
       },
     })
     .then(({ data }) => {
-      if (Object.values(data).length === 0 && ship) {
+      if (Object.values(data.data).length === 0 && ship) {
         ship.removeAll()
         return
       }
@@ -81,6 +81,11 @@ function getShipData(map: Map, isStatic: boolean = false) {
 }
 
 function renderShip(_map: Map, data: any) {
+  if (_map.getZoom() < 12 && ship) {
+    ship.removeAll()
+    return
+  }
+
   const { k, v } = data;
   let shipData = []
   if (k && v) {

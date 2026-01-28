@@ -1,6 +1,6 @@
-import { BBox } from 'rbush';
+import type { BBox } from 'rbush'
 
-export type Id = string | number | undefined;
+export type Id = string | number | undefined
 
 /**
  * 初始基准点的位置
@@ -31,14 +31,14 @@ export enum Scopes {
  * bbox-范围 dir-初始基准点的位置 options-配置
  */
 export interface CollisionItemOptions {
-  id: string | number;
-  center: BBox;
-  top: BBox;
-  bottom: BBox;
-  left: BBox;
-  right: BBox;
-  'top-left': BBox;
-  'top-right': BBox;
-  'bottom-left': BBox;
-  'bottom-right': BBox;
+  id: string | number
+  // center: BBox
+  // top: BBox
+  // bottom: BBox
+  // left: BBox
+  // right: BBox
+  'top-left': BBox
+  'top-right': BBox
+  'bottom-left': BBox
+  'bottom-right': BBox
 }

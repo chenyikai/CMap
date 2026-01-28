@@ -39,8 +39,6 @@ class Ship extends Module {
 
   private registerPlugins(plugins: BaseShipConstructor[] = []): void {
     plugins.forEach((PluginClass) => {
-      console.log(PluginClass.prototype, 'PluginClass')
-
       if (PluginClass.NAME) {
         this.pluginRegistry.set(PluginClass.NAME, PluginClass)
       } else {
@@ -52,7 +50,7 @@ class Ship extends Module {
   private createCollisions(): CollisionItemOptions[] {
     return this.tooltips.map((tooltip) => {
       return {
-        ...tooltip.getAllBbox(),
+        ...tooltip.getSimpleBbox(),
         id: tooltip.id,
       }
     })
@@ -116,12 +114,22 @@ class Ship extends Module {
   removeAll(): void {
     this.collision.clear()
 
+    // 频率过高的设置图层数据导致问题
     this.ships.forEach((ship) => {
       ship.remove()
     })
     this.ships = []
 
     this.event.removeAll()
+
+    // setTimeout(() => {
+    // const source = this.context.map.getSource('mapbox-gl-ship-source')
+    // if (source?.type === 'geojson') {
+    //   source.setData({
+    //     type: 'FeatureCollection',
+    //     features: [],
+    //   })
+    // }
   }
 
   render(): void {

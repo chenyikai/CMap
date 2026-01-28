@@ -30,7 +30,7 @@ export enum RESULT_CODE {
 }
 export interface result {
   code: RESULT_CODE
-  data: Icon
+  data: Icon | SvgIcon
   msg: string | Error
 }
 
