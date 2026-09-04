@@ -1,5 +1,7 @@
 import type { CollisionItemOptions } from './item.ts'
 
+export type * from './item.ts'
+
 /**
  * Collision 初始化配置
  * @template T 方向标识类型，与 CollisionItemOptions 保持一致

@@ -1,5 +1,11 @@
 # c-map
 
+## 0.2.1
+
+### Patch Changes
+
+- Export all public type declarations, enums, extension base classes, and event classes from the package root.
+
 ## 0.2.0
 
 ### Minor Changes

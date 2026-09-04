@@ -1,6 +1,6 @@
 {
   "name": "cmap-core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "files": [
     "dist",
@@ -37,6 +37,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"./**/*.{html,vue,ts,js,json,md}\"",
     "type-check": "tsc --noEmit",
+    "test:types": "pnpm run build && tsc -p tests/types/tsconfig.json",
     "change": "changeset",
     "version": "changeset version",
     "pub": "changeset && changeset version && pnpm run build && changeset publish && node scripts/git-tag.cjs",

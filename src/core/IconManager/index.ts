@@ -2,7 +2,7 @@ import type { Map as MapboxMap } from 'mapbox-gl'
 
 import { cacheKey } from '@/config'
 import Cache from '@/core/Cache'
-import type { Icon, Image, result, SvgIcon } from '@/types/IconManager'
+import type { Icon, IconLoadResult, Image, SvgIcon } from '@/types/IconManager'
 import { RESULT_CODE } from '@/types/IconManager'
 import { convertSvgToImageObjects } from '@/utils/util.ts'
 
@@ -14,47 +14,47 @@ class IconManager {
   _cache: Cache = new Cache({ uniqueKey: `${cacheKey}-icon`, type: 'localstorage' })
 
   // 🌟 核心修复：并发加载锁。防止同一时间多次请求同一个图标
-  private loadingPromises = new Map<string, Promise<result>>()
+  private loadingPromises = new Map<string, Promise<IconLoadResult>>()
 
   constructor(map: MapboxMap) {
     this._map = map
   }
 
-  async load(icons: Icon[]): Promise<{ success: result[]; error: result[] }> {
+  async load(icons: Icon[]): Promise<{ success: IconLoadResult[]; error: IconLoadResult[] }> {
     const results = await Promise.allSettled(icons.map((icon) => this.add(icon)))
 
-    const success: result[] = []
-    const error: result[] = []
+    const success: IconLoadResult[] = []
+    const error: IconLoadResult[] = []
 
     results.forEach((item) => {
       if (item.status === 'fulfilled') {
         success.push(item.value)
       } else {
-        error.push(item.reason as result)
+        error.push(item.reason as IconLoadResult)
       }
     })
 
     return { success, error }
   }
 
-  async loadSvg(icons: SvgIcon[]): Promise<{ success: result[]; error: result[] }> {
+  async loadSvg(icons: SvgIcon[]): Promise<{ success: IconLoadResult[]; error: IconLoadResult[] }> {
     const results = await Promise.allSettled(icons.map((icon) => this.addSvg(icon)))
 
-    const success: result[] = []
-    const error: result[] = []
+    const success: IconLoadResult[] = []
+    const error: IconLoadResult[] = []
 
     results.forEach((item) => {
       if (item.status === 'fulfilled') {
         success.push(item.value)
       } else {
-        error.push(item.reason as result)
+        error.push(item.reason as IconLoadResult)
       }
     })
 
     return { success, error }
   }
 
-  async addSvg(icon: SvgIcon): Promise<result> {
+  async addSvg(icon: SvgIcon): Promise<IconLoadResult> {
     // 1. 如果地图已经加载过了，直接返回
     if (this.has(icon.name)) {
       return this.error(icon, 'The image has been loaded！')
@@ -66,7 +66,7 @@ class IconManager {
     }
 
     // 3. 定义并触发真实的加载任务
-    const loadTask = (async (): Promise<result> => {
+    const loadTask = (async (): Promise<IconLoadResult> => {
       try {
         const data = await convertSvgToImageObjects(icon.svg)
 
@@ -92,7 +92,7 @@ class IconManager {
     return loadTask
   }
 
-  add(icon: Icon): Promise<result> {
+  add(icon: Icon): Promise<IconLoadResult> {
     // 1. 同步拦截
     if (this.has(icon.name)) {
       return Promise.resolve(this.error(icon, 'The image has been loaded！'))
@@ -103,7 +103,7 @@ class IconManager {
       return this.loadingPromises.get(icon.name)!
     }
 
-    const loadTask = new Promise<result>((resolve, reject) => {
+    const loadTask = new Promise<IconLoadResult>((resolve, reject) => {
       this._map.loadImage(icon.url, (err, image) => {
         // 结束时清理锁
         this.loadingPromises.delete(icon.name)
@@ -143,7 +143,7 @@ class IconManager {
     return this._cache.get(name) as Image | undefined
   }
 
-  update(icon: Icon): Promise<result> {
+  update(icon: Icon): Promise<IconLoadResult> {
     return new Promise((resolve, reject) => {
       if (!this._map.hasImage(icon.name)) {
         // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
@@ -180,7 +180,7 @@ class IconManager {
     }
   }
 
-  success(icon: Icon | SvgIcon): result {
+  success(icon: Icon | SvgIcon): IconLoadResult {
     return {
       code: IconManager.SUCCESS,
       data: icon,
@@ -188,7 +188,7 @@ class IconManager {
     }
   }
 
-  error(icon: Icon | SvgIcon, err: string | Error): result {
+  error(icon: Icon | SvgIcon, err: string | Error): IconLoadResult {
     return {
       code: IconManager.FAIL,
       data: icon,

@@ -47,8 +47,6 @@ export interface Shape {
 
 export type Orientation = 'static' | 'left' | 'right' | 'straight'
 
-export type state = 'hover' | 'focus'
-
 export interface BaseShipConstructor<T extends IBaseShipOptions = any> {
   new (map: Map, options: T): BaseShip<T>
   readonly NAME: string

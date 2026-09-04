@@ -22,7 +22,7 @@ export default tseslint.config(
         ecmaVersion: 2020,
         globals: globals.browser,
         parserOptions: {
-          project: ['./tsconfig.json'], // 👈 必须指向你的 TS 配置
+          project: ['./tsconfig.json', './tests/types/tsconfig.json'], // 👈 必须指向你的 TS 配置
           tsconfigRootDir: import.meta.dirname,
         },
       },

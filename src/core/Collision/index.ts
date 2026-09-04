@@ -37,17 +37,10 @@ class Collision<T extends string = string> {
   /** RBush 空间索引树，每次 collides() 前会自动清空重建 */
   private _tree = new RBush<CollisionItem<T>>()
 
-  /**
-   * 可选的地图实例，预留给视口裁剪等扩展功能
-   * 当前版本暂未使用，传入后存储备用
-   */
-  private _map: Map | undefined
-
   /** 当前管理的所有碰撞项 */
   private _items: CollisionItem<T>[] = []
 
-  constructor(map?: Map, config?: CollisionOptions<T>) {
-    this._map = map
+  constructor(_map?: Map, config?: CollisionOptions<T>) {
     if (config?.collisions?.length) {
       this.load(config.collisions)
     }

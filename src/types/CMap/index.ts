@@ -14,7 +14,7 @@ export enum MapType {
   SATELLITE = 'satellite',
 }
 
-export interface formatOptions {
+export interface FormatOptions {
   value: string | number
   data: object
 }
@@ -24,10 +24,10 @@ export interface InfoFormConfig {
 
   prop: string | number
 
-  format(formatOptions: formatOptions): string
+  format(options: FormatOptions): string
 }
 
-export type customPopupOptions = PopupOptions & {
+export type CustomPopupOptions = PopupOptions & {
   center: LngLatLike
 
   config: InfoFormConfig[]

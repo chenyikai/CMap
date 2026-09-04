@@ -639,24 +639,7 @@ fill.render()
 
 ### Circle — 圆形
 
-```ts
-import { Circle } from 'cmap-core'
-
-const circle = new Circle(cmap.getMap(), {
-  id: 'circle-1',
-  name: '范围圈',
-  visibility: 'visible',
-  center: [120.38, 36.07],
-  radius: 1000,
-  unit: 'meters',
-  style: {
-    'fill-color': '#F59E0B',
-    'fill-opacity': 0.2,
-  },
-})
-
-circle.render()
-```
+> 当前版本只公开圆形相关类型，`Circle` 运行时类尚未发布。
 
 ### ICircleOptions
 
@@ -697,11 +680,11 @@ const iconManager = new IconManager(cmap.getMap())
 |------|--------|------|
 | `load(icons)` | `Promise<{success, error}>` | 批量加载 URL 图片 |
 | `loadSvg(icons)` | `Promise<{success, error}>` | 批量加载 SVG |
-| `add(icon)` | `Promise<result>` | 添加单个 URL 图标 |
-| `addSvg(icon)` | `Promise<result>` | 添加单个 SVG 图标 |
+| `add(icon)` | `Promise<IconLoadResult>` | 添加单个 URL 图标 |
+| `addSvg(icon)` | `Promise<IconLoadResult>` | 添加单个 SVG 图标 |
 | `has(name)` | `boolean` | 检查是否已加载 |
 | `getImage(name)` | `Image \| undefined` | 获取已缓存图片 |
-| `update(icon)` | `Promise<result>` | 更新图标 |
+| `update(icon)` | `Promise<IconLoadResult>` | 更新图标 |
 | `delete(name)` | `void` | 删除图标缓存 |
 
 ### Icon
@@ -723,10 +706,10 @@ interface SvgIcon {
 }
 ```
 
-### result
+### IconLoadResult
 
 ```ts
-interface result {
+interface IconLoadResult {
   code: RESULT_CODE           // 0 成功 / -1 失败
   data: Icon | SvgIcon        // 原始入参
   msg:  string | Error        // 结果信息或错误
@@ -959,6 +942,7 @@ import type {
   // 图标
   Icon,
   SvgIcon,
+  IconLoadResult,
   // Tooltip
   ITooltipOptions,
   Anchor,

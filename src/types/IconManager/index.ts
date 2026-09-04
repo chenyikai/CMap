@@ -9,7 +9,7 @@ export interface SvgIcon {
   svg: string
 }
 
-interface StyleImageMetadata {
+export interface StyleImageMetadata {
   pixelRatio: number
   sdf: boolean
   usvg: boolean
@@ -28,10 +28,8 @@ export enum RESULT_CODE {
   SUCCESS = 0,
   FAIL = -1,
 }
-export interface result {
+export interface IconLoadResult {
   code: RESULT_CODE
   data: Icon | SvgIcon
   msg: string | Error
 }
-
-export interface loadOptions {}
