@@ -40,6 +40,7 @@
     "test:types": "pnpm run build && tsc -p tests/types/tsconfig.json",
     "change": "changeset",
     "version": "changeset version",
+    "release": "pnpm run build && changeset publish",
     "pub": "changeset && changeset version && pnpm run build && changeset publish && node scripts/git-tag.cjs",
     "pub:patch": "node -e \"const fs=require('fs');const has=fs.readdirSync('.changeset').some(f=>f.endsWith('.md')&&f!=='README.md');if(!has)fs.writeFileSync('.changeset/auto-bump.md','---\\n\\\"cmap-core\\\": patch\\n---\\n\\nVersion bump.\\n')\" && changeset version && pnpm run build && changeset publish && node scripts/git-tag.cjs",
     "pub:minor": "node -e \"const fs=require('fs');const has=fs.readdirSync('.changeset').some(f=>f.endsWith('.md')&&f!=='README.md');if(!has)fs.writeFileSync('.changeset/auto-bump.md','---\\n\\\"cmap-core\\\": minor\\n---\\n\\nVersion bump.\\n')\" && changeset version && pnpm run build && changeset publish && node scripts/git-tag.cjs",
