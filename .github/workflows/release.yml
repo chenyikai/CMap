@@ -50,7 +50,7 @@ jobs:
         with:
           # --- 发布命令 ---
           # 必须使用 pnpm run release，因为项目里有 pnpm-lock.yaml
-          publish: pnpm run release
+          publish: pnpm run pub
 
           # --- PR 信息 ---
           commit: "chore: update versions"
