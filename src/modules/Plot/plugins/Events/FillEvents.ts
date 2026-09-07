@@ -43,7 +43,13 @@ export class FillCreateEvent extends FillBaseEvent {
         layers: [...layers],
       })
 
-      if (features.length > 0) {
+      if (
+        this.count >= 3 &&
+        features.some(
+          (feature) =>
+            String(feature.properties?.id ?? feature.id) === this.fill.line?.points[0]?.id,
+        )
+      ) {
         this.stop(e)
         return
       }
@@ -69,16 +75,23 @@ export class FillCreateEvent extends FillBaseEvent {
   }
 
   private onContextmenu = (e: MapMouseEvent): void => {
-    this.fill.line!.insertPoint(this.count, e.lngLat)
+    if (!this.fill.line || this.count < 2) return
+    this.fill.line.insertPoint(this.count, e.lngLat)
+    this.count++
     this.stop(e)
   }
 
   private stop = (e: MapMouseEvent): void => {
     e.preventDefault()
-    const firstPoint = this.fill.line?.points.at(0)
+    if (!this.fill.line || this.count < 3) return
+    const distinct = new Set(
+      this.fill.line.options.position?.map((position) => position.toArray().join(',')),
+    )
+    if (distinct.size < 3) return
+    const firstPoint = this.fill.line.points.at(0)
 
-    if (this.fill.line && firstPoint?.center) {
-      const point = this.fill.line.insertPoint(this.count + 1, firstPoint.center)
+    if (firstPoint?.center) {
+      const point = this.fill.line.insertPoint(this.count, firstPoint.center)
       point.hide()
     }
 
@@ -109,45 +122,52 @@ export class FillCreateEvent extends FillBaseEvent {
     /* empty */
   }
   public override onRemove(): void {
-    /* empty */
+    this.disabled()
   }
 
   public override enabled(): void {
-    this.context.map.doubleClickZoom.disable()
+    if (this.status === EventState.ON) return
+
+    this.count = this.fill.line?.points.length ?? 0
+    this.lockDoubleClickZoom()
     //
     this.context.map.on('click', this.onClick)
     this.context.map.on('mousemove', this.onMousemove)
     this.context.map.on('dblclick', this.stop)
     this.context.map.on('contextmenu', this.onContextmenu)
-    this.changeStatus()
+    this.status = EventState.ON
   }
   public override disabled(): void {
     this.context.map.off('click', this.onClick)
     this.context.map.off('mousemove', this.onMousemove)
     this.context.map.off('dblclick', this.stop)
     this.context.map.off('contextmenu', this.onContextmenu)
+    this.count = 0
+    this.setDrawLngLat(null)
+    this.context.map.getCanvasContainer().style.cursor = ''
 
-    setTimeout(() => {
-      this.context.map.doubleClickZoom.enable()
-    }, 0)
-    this.changeStatus()
+    this.unlockDoubleClickZoom()
+    this.status = EventState.OFF
   }
 }
 
 export class FillUpdateEvent extends FillBaseEvent {
   protected dragStartLngLat: LngLat | null = null
 
-  private onLineUpdate = (e: EventMessage<Line>, point: PointInstance): void => {
+  private onLineUpdate = (e: EventMessage<Line>, point?: PointInstance): void => {
+    if (!point) {
+      this.fill.render()
+      this.fill.emit(Event.UPDATE, this.message<Fill>(e.originEvent, this.fill))
+      return
+    }
     if (!point.center || !this.fill.line) return
 
     const index = point.options.properties?.index as number
 
     if (index === 0) {
       const lastIndex = this.fill.line.points.length - 1
-      this.fill.line.updatePoint(lastIndex, point.center)
+      this.fill.line.updatePoint(lastIndex, point.center, false)
     }
-
-    this.fill.line.updatePoint(index, point.center)
 
     this.fill.render()
 
@@ -177,7 +197,15 @@ export class FillUpdateEvent extends FillBaseEvent {
       layers: [...layers, this.fill.line?.LAYER ?? ''],
     })
 
-    if (features.length > 0) {
+    if (
+      features.some((feature) =>
+        [
+          this.fill.line?.id,
+          ...(this.fill.line?.points.map((point) => point.id) ?? []),
+          ...(this.fill.line?.midPoints.map((point) => point.id) ?? []),
+        ].includes(String(feature.properties?.id ?? feature.id)),
+      )
+    ) {
       return
     }
 
@@ -237,35 +265,45 @@ export class FillUpdateEvent extends FillBaseEvent {
   }
 
   public override enabled(): void {
+    if (this.status === EventState.ON) return
+
     this.fill.line?.on(Event.UPDATE, this.onLineUpdate)
 
     this.fill.line?.on(Event.MID_UPDATE, this.onLineMidUpdate)
 
     this.fill.line?.on(Event.MID_DONE_UPDATE, this.onLineMidDoneUpdate)
 
-    this.context.map.on('mousedown', this.fill.LAYER, this.onFillMousedown)
+    this.context.eventManager.on(this.fill.id, this.fill.LAYER, 'mousedown', this.onFillMousedown)
 
     this.context.eventManager.on(this.fill.id, this.fill.LAYER, 'mouseenter', this.onFillMouseenter)
 
     this.context.eventManager.on(this.fill.id, this.fill.LAYER, 'mouseleave', this.onFillMouseLeave)
 
-    this.changeStatus()
+    this.status = EventState.ON
+  }
+
+  public cancelDrag(): void {
+    this.context.map.off('mousemove', this.onMousemove)
+    this.context.map.off('mouseup', this.onMouseup)
+    this.dragStartLngLat = null
+    this.context.map.getCanvasContainer().style.cursor = ''
   }
 
   public override disabled(): void {
+    this.cancelDrag()
     this.fill.line?.off(Event.UPDATE, this.onLineUpdate)
 
     this.fill.line?.off(Event.MID_UPDATE, this.onLineMidUpdate)
 
     this.fill.line?.off(Event.MID_DONE_UPDATE, this.onLineMidDoneUpdate)
 
-    this.context.map.off('mousedown', this.fill.LAYER, this.onFillMousedown)
+    this.context.eventManager.off(this.fill.id, 'mousedown', this.onFillMousedown)
 
     this.context.eventManager.off(this.fill.id, 'mouseenter', this.onFillMouseenter)
 
     this.context.eventManager.off(this.fill.id, 'mouseleave', this.onFillMouseLeave)
 
-    this.changeStatus()
+    this.status = EventState.OFF
   }
 }
 
@@ -283,10 +321,12 @@ export class FillResidentEvent extends FillBaseEvent {
   }
 
   public override enabled(): void {
-    this.changeStatus()
+    if (this.status === EventState.ON) return
+
+    this.status = EventState.ON
   }
 
   public override disabled(): void {
-    this.changeStatus()
+    this.status = EventState.OFF
   }
 }

@@ -14,6 +14,7 @@ export class IndexPoint extends Point<IIndexPointOptions> {
 
   constructor(map: Map, options: IIndexPointOptions) {
     super(map, options)
+    this.residentEvent.enabled()
   }
 
   public override onAdd(): void {

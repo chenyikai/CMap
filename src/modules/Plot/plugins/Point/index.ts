@@ -24,6 +24,8 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
 
   override readonly LAYER: string = POINT_CIRCLE_LAYER_NAME
 
+  protected removed = false
+
   public residentEvent: PointResidentEvent
 
   public updateEvent: PointUpdateEvent
@@ -36,7 +38,16 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
     this.residentEvent = new PointResidentEvent(map, this)
     this.updateEvent = new PointUpdateEvent(map, this)
     this.createEvent = new PointCreateEvent(map, this)
-    this.residentEvent.enabled()
+    if (new.target === Point) {
+      this.residentEvent.enabled()
+    } else {
+      // Custom subclasses may initialize their layer after super() returns.
+      queueMicrotask(() => {
+        if (!this.removed && !this.isEdit && !this.isCreate && this.visibility === 'visible') {
+          this.residentEvent.enabled()
+        }
+      })
+    }
   }
 
   public override onAdd(): void {
@@ -54,27 +65,48 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
     return this.options.id
   }
   public override edit(): void {
+    if (this.removed) return
     this.setState({ edit: true })
     this.residentEvent.disabled()
-    this.updateEvent.enabled()
+    if (this.visibility === 'visible') this.updateEvent.enabled()
   }
   public override unedit(): void {
     this.setState({ edit: false })
-    this.residentEvent.enabled()
+    if (this.visibility === 'visible') this.residentEvent.enabled()
     this.updateEvent.disabled()
   }
 
+  public override hide(): void {
+    this.updateEvent.disabled()
+    this.residentEvent.disabled()
+    this.stop()
+    this.context.focus.remove(this.id)
+    super.hide()
+  }
+
+  public override show(): void {
+    if (this.removed) return
+    this.options.visibility = 'visible'
+    if (this.isEdit) this.updateEvent.enabled()
+    else this.residentEvent.enabled()
+    this.render()
+  }
+
   public override focus(): void {
-    throw new Error('Method not implemented.')
+    this.setState({ focus: true })
+    this.render()
   }
   public override unfocus(): void {
-    throw new Error('Method not implemented.')
+    this.setState({ focus: false })
+    this.context.focus.remove(this.id)
   }
   public override select(): void {
-    throw new Error('Method not implemented.')
+    if (!this.center) return
+    this.context.map.easeTo({ center: this.center })
+    this.focus()
   }
   public override unselect(): void {
-    throw new Error('Method not implemented.')
+    this.unfocus()
   }
 
   public override get center(): LngLat | null {
@@ -84,7 +116,7 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
   }
 
   public override get geometry(): GeoJSON.Point | null {
-    throw new Error('Method not implemented.')
+    return this.getFeature().geometry
   }
 
   public override getFeature(): GeoJSON.Feature<GeoJSON.Point | null> {
@@ -135,10 +167,12 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
   }
   public override start(): void {
     if (this.center === null) {
+      this.setState({ create: true })
       this.createEvent.enabled()
     }
   }
   public override stop(): void {
+    this.setState({ create: false })
     this.createEvent.disabled()
   }
 
@@ -147,13 +181,19 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
     this.render()
   }
   public override update(options: T): void {
+    if (options.id !== this.id) throw new Error('Plot id cannot be changed')
     this.options = options
     this.render()
   }
   public override remove(): void {
-    this.residentEvent.disabled()
-    this.updateEvent.disabled()
-    this.createEvent.disabled()
+    if (this.removed) return
+    this.removed = true
+    this.detachLifecycle()
+    this.residentEvent.destroy()
+    this.updateEvent.destroy()
+    this.createEvent.destroy()
+    this.context.focus.remove(this.id)
+    this.context.map.removeFeatureState({ source: this.SOURCE, id: this.id })
 
     this.removeAllListeners()
 
@@ -167,6 +207,10 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
     this.context.register.setGeoJSONData(PLOT_SOURCE_NAME, emptyFeature)
   }
   public override render(): void {
+    if (this.removed) return
+    if (this.isFocus && this.geometry && this.visibility === 'visible') {
+      this.context.focus.set(this.getFeature() as GeoJSON.Feature)
+    }
     this.context.register.setGeoJSONData(PLOT_SOURCE_NAME, this.getFeature() as GeoJSON.Feature)
   }
 

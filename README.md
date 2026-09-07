@@ -258,6 +258,19 @@ enum TooltipType {
 
 所有标绘类型均继承自抽象类 `Poi`。
 
+#### 编辑与生命周期约定
+
+- `edit()`、`unedit()` 可重复调用；`hide()` 会停止当前拖拽，`show()` 恢复原来的编辑状态。
+- `remove()` 清理图形、子节点及实例事件，支持重复调用；移除后的实例不应继续复用。
+- `move(position)` 在程序调用时以标绘中心定位，鼠标拖拽时保留鼠标与标绘的相对位置。
+- Line 节点 ID 在其他节点增删时保持稳定，顺序保存在 `properties.index`。使用 `getPoint(index)` / `getMidPoint(index)` 获取节点，不要通过索引拼接 ID。
+- `insertPoint()`、`updatePoint()`、`removePointAt()` 会同步坐标和图形；`clearAll()` 清空整条线。`update()` 不能修改实例 ID。
+- Fill 接受未闭合或已闭合的坐标数组；重复末端闭合点会被规范化。完成绘制至少需要三个不同顶点。
+- `update.execute` 的第二个参数只在顶点更新时提供；整体移动没有该参数。`mid.update.done` 的 `originEvent` 为原始鼠标事件。
+- Point、IconPoint、IndexPoint 均支持 `geometry`、`focus/unfocus` 和 `select/unselect`。
+
+执行 `pnpm run test:plot` 可运行不依赖 WebGL 的标绘回归测试；该测试已包含在 `pnpm run check` 中。
+
 ### Poi 通用方法
 
 | 方法 | 说明 |

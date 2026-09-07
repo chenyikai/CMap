@@ -32,7 +32,6 @@ export class PointCreateEvent<T extends Point = Point> extends PointBaseEvent<T>
     this.point.emit(Event.CREATE, this.message<Point>(e, this.point))
 
     this.point.stop()
-    this.disabled()
 
     this.point.edit()
   }
@@ -53,15 +52,17 @@ export class PointCreateEvent<T extends Point = Point> extends PointBaseEvent<T>
   }
 
   public override enabled(): void {
+    if (this.status === EventState.ON) return
+
     this.context.map.on('click', this.onClick)
     this.context.map.on('mousemove', this.onMousemove)
-    this.changeStatus()
+    this.status = EventState.ON
   }
   public override disabled(): void {
     this.context.map.getCanvasContainer().style.cursor = ''
     this.context.map.off('click', this.onClick)
     this.context.map.off('mousemove', this.onMousemove)
-    this.changeStatus()
+    this.status = EventState.OFF
   }
 }
 
@@ -86,7 +87,7 @@ export class PointUpdateEvent<T extends Point = Point> extends PointBaseEvent<T>
   private onMouseup = (e: MapMouseEvent): void => {
     this.context.map.getCanvasContainer().style.cursor = ''
     // this.disabled()
-    this.context.map.off('mousemove', this.onMousemove)
+    this.cancelDrag()
 
     this.point.render()
 
@@ -106,13 +107,22 @@ export class PointUpdateEvent<T extends Point = Point> extends PointBaseEvent<T>
   }
 
   public override enabled(): void {
+    if (this.status === EventState.ON) return
+
     this.context.eventManager.on(this.point.id, this.point.LAYER, 'mousedown', this.onMousedown)
-    this.changeStatus()
+    this.status = EventState.ON
+  }
+
+  public cancelDrag(): void {
+    this.context.map.off('mousemove', this.onMousemove)
+    this.context.map.off('mouseup', this.onMouseup)
+    this.context.map.getCanvasContainer().style.cursor = ''
   }
 
   public override disabled(): void {
+    this.cancelDrag()
     this.context.eventManager.off(this.point.id, 'mousedown', this.onMousedown)
-    this.changeStatus()
+    this.status = EventState.OFF
   }
 }
 
@@ -155,6 +165,8 @@ export class PointResidentEvent<T extends Point = Point> extends PointBaseEvent<
   }
 
   public override enabled(): void {
+    if (this.status === EventState.ON) return
+
     this.context.eventManager.on(this.point.id, this.point.LAYER, 'dblclick', this.onDblclick)
 
     this.context.eventManager.on(this.point.id, this.point.LAYER, 'mouseenter', this.onMouseEnter)
@@ -162,7 +174,7 @@ export class PointResidentEvent<T extends Point = Point> extends PointBaseEvent<
     this.context.eventManager.on(this.point.id, this.point.LAYER, 'mouseleave', this.onMouseLeave)
 
     this.context.eventManager.on(this.point.id, this.point.LAYER, 'click', this.onClick)
-    this.changeStatus()
+    this.status = EventState.ON
   }
 
   public override disabled(): void {
@@ -173,6 +185,6 @@ export class PointResidentEvent<T extends Point = Point> extends PointBaseEvent<
     this.context.eventManager.off(this.point.id, 'mouseleave', this.onMouseLeave)
 
     this.context.eventManager.off(this.point.id, 'click', this.onClick)
-    this.changeStatus()
+    this.status = EventState.OFF
   }
 }

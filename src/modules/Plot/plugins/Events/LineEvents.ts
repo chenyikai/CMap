@@ -1,6 +1,5 @@
-import { cloneDeep } from 'lodash-es'
 import type { Map, MapMouseEvent } from 'mapbox-gl'
-import { LngLat } from 'mapbox-gl'
+import type { LngLat } from 'mapbox-gl'
 
 import { EventState } from '@/core/EventState'
 import type { Line } from '@/modules/Plot/plugins/Line'
@@ -41,7 +40,13 @@ export class LineCreateEvent extends LineBaseEvent {
         layers: [...layers],
       })
 
-      if (features.length > 0) {
+      if (
+        features.some((feature) =>
+          [...this.line.points, ...this.line.midPoints].some(
+            (point) => String(feature.properties?.id ?? feature.id) === point.id,
+          ),
+        )
+      ) {
         this.stop(e)
         return
       }
@@ -61,6 +66,7 @@ export class LineCreateEvent extends LineBaseEvent {
 
   private stop = (e: MapMouseEvent): void => {
     e.preventDefault()
+    if ((this.line.options.position?.length ?? 0) < 2) return
     this.line.stop()
 
     this.context.map.getCanvasContainer().style.cursor = ''
@@ -69,9 +75,9 @@ export class LineCreateEvent extends LineBaseEvent {
 
     this.disabled()
 
-    this.line.createPoint()
     this.line.edit()
 
+    this.line.render()
     this.line.emit(Event.CREATE, this.message<Line>(e, this.line))
   }
 
@@ -83,7 +89,7 @@ export class LineCreateEvent extends LineBaseEvent {
     /* empty */
   }
   public override onRemove(): void {
-    /* empty */
+    this.disabled()
   }
 
   public setDrawLngLat(position: LngLat | null): void {
@@ -95,22 +101,26 @@ export class LineCreateEvent extends LineBaseEvent {
   }
 
   public override enabled(): void {
-    this.context.map.doubleClickZoom.disable()
+    if (this.status === EventState.ON) return
+
+    this.count = this.line.options.position?.length ?? 0
+    this.lockDoubleClickZoom()
 
     this.context.map.on('click', this.onClick)
     this.context.map.on('mousemove', this.onMousemove)
     this.context.map.on('dblclick', this.stop)
-    this.changeStatus()
+    this.status = EventState.ON
   }
   public override disabled(): void {
     this.context.map.off('click', this.onClick)
     this.context.map.off('mousemove', this.onMousemove)
     this.context.map.off('dblclick', this.stop)
+    this.count = 0
+    this.drawPoint = null
+    this.context.map.getCanvasContainer().style.cursor = ''
 
-    setTimeout(() => {
-      this.context.map.doubleClickZoom.enable()
-    }, 0)
-    this.changeStatus()
+    this.unlockDoubleClickZoom()
+    this.status = EventState.OFF
   }
 }
 
@@ -140,28 +150,20 @@ export class LineUpdateEvent extends LineBaseEvent {
 
   private onMidUpdate = (e: EventMessage<Point>): void => {
     const { index } = e.instance.options.properties ?? {}
-    const { position } = cloneDeep(this.line.options)
+    const { position } = this.line.options
     if (position && typeof index === 'number' && e.instance.center) {
       this.line.render()
       this.line.emit(Event.MID_UPDATE, this.message<Line>(e.originEvent, this.line), e.instance)
     }
   }
 
-  private onMidDone = (e: MapMouseEvent): void => {
-    if (this.line.geometry?.coordinates) {
-      const lonLat = this.line.geometry.coordinates
-
-      this.line.options.position = lonLat.map((item) => new LngLat(item[0], item[1]))
-      this.setModifyLngLat(null)
-
-      this.line.update({
-        ...this.line.options,
-      })
-
-      this.line.edit()
-
-      this.line.emit(Event.MID_DONE_UPDATE, this.message<Line>(e, this.line))
-    }
+  private onMidDone = (e: EventMessage<Point>): void => {
+    const { index } = e.instance.options.properties ?? {}
+    const position = e.instance.center
+    if (typeof index !== 'number' || !position) return
+    this.setModifyLngLat(null)
+    this.line.insertPoint(index + 1, position)
+    this.line.emit(Event.MID_DONE_UPDATE, this.message<Line>(e.originEvent, this.line))
   }
 
   private onLineMousedown = (e: MapMouseEvent): void => {
@@ -187,12 +189,10 @@ export class LineUpdateEvent extends LineBaseEvent {
 
   private onLineMouseenter = (): void => {
     this.context.map.getCanvasContainer().style.cursor = CURSOR.CLICK
-    this.context.map.on('mousedown', this.line.LAYER, this.onLineMousedown)
   }
 
   private onLineMouseLeave = (): void => {
     this.context.map.getCanvasContainer().style.cursor = CURSOR.EMPTY
-    this.context.map.off('mousedown', this.line.LAYER, this.onLineMousedown)
   }
 
   private onMousemove = (e: MapMouseEvent): void => {
@@ -242,6 +242,8 @@ export class LineUpdateEvent extends LineBaseEvent {
   }
 
   public override enabled(): void {
+    if (this.status === EventState.ON) return
+
     this.line.points.forEach((point) => {
       point.on(Event.UPDATE, this.onVertexUpdate)
     })
@@ -251,13 +253,24 @@ export class LineUpdateEvent extends LineBaseEvent {
       mid.on(Event.DONE_UPDATE, this.onMidDone)
     })
 
+    this.context.eventManager.on(this.line.id, this.line.LAYER, 'mousedown', this.onLineMousedown)
     this.context.eventManager.on(this.line.id, this.line.LAYER, 'mouseenter', this.onLineMouseenter)
     this.context.eventManager.on(this.line.id, this.line.LAYER, 'mouseleave', this.onLineMouseLeave)
 
-    this.changeStatus()
+    this.status = EventState.ON
+  }
+
+  public cancelDrag(): void {
+    this.context.map.off('mousemove', this.onMousemove)
+    this.context.map.off('mouseup', this.onMouseup)
+    this.dragStartLngLat = null
+    this.modifyMid = null
+    this.context.map.getCanvasContainer().style.cursor = ''
   }
 
   public override disabled(): void {
+    this.cancelDrag()
+    this.context.eventManager.off(this.line.id, 'mousedown', this.onLineMousedown)
     this.line.points.forEach((point) => {
       point.off(Event.UPDATE, this.onVertexUpdate)
     })
@@ -269,7 +282,7 @@ export class LineUpdateEvent extends LineBaseEvent {
 
     this.context.eventManager.off(this.line.id, 'mouseenter', this.onLineMouseenter)
     this.context.eventManager.off(this.line.id, 'mouseleave', this.onLineMouseLeave)
-    this.changeStatus()
+    this.status = EventState.OFF
   }
 }
 
@@ -323,13 +336,15 @@ export class LineResidentEvent extends LineBaseEvent {
   }
 
   public override enabled(): void {
+    if (this.status === EventState.ON) return
+
     this.line.points.forEach((point) => {
       point.on(Event.CLICK, this.onClick)
     })
     this.context.eventManager.on(this.line.id, this.line.LAYER, 'mouseenter', this.onLineMouseenter)
     this.context.eventManager.on(this.line.id, this.line.LAYER, 'mouseleave', this.onLineMouseLeave)
     this.context.eventManager.on(this.line.id, this.line.LAYER, 'click', this.onLineClick)
-    this.changeStatus()
+    this.status = EventState.ON
   }
 
   public override disabled(): void {
@@ -340,6 +355,6 @@ export class LineResidentEvent extends LineBaseEvent {
     this.context.eventManager.off(this.line.id, 'mouseenter', this.onLineMouseenter)
     this.context.eventManager.off(this.line.id, 'mouseleave', this.onLineMouseLeave)
     this.context.eventManager.off(this.line.id, 'click', this.onLineClick)
-    this.changeStatus()
+    this.status = EventState.OFF
   }
 }

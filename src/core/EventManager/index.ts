@@ -57,7 +57,7 @@ export class EventManager {
       return
     }
 
-    callbacks.push(callback)
+    if (!callbacks.includes(callback)) callbacks.push(callback)
 
     // 确保底层 Mapbox 监听已激活
     this.ensureMapListener(layerId, eventType)

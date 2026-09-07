@@ -52,6 +52,15 @@ export class ArrowLine extends Line<IArrowLineOptions> {
     })
   }
 
+  public override render(): void {
+    this.points.forEach((point, index) => {
+      const icon = point as IconPoint
+      icon.options.icon = this.getIconName(index)
+      icon.options.style = { ...icon.options.style, 'icon-rotate': this.getRotate(index) }
+    })
+    super.render()
+  }
+
   private getIconName(index: number): string {
     if (!Array.isArray(this.options.position)) return ''
 

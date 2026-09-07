@@ -47,7 +47,7 @@ cp .env.example .env.local
 pnpm run check
 ```
 
-该命令依次检查 ESLint、TypeScript、对外类型声明和 Demo 构建。
+该命令依次检查 ESLint、TypeScript、Plot 行为回归、对外类型声明和 Demo 构建。
 
 也可以单独运行：
 

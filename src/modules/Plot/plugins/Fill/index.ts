@@ -21,6 +21,10 @@ import { DEFAULT_FILL_COLOR, FILL_LAYER_NAME, LAYER_LIST, NAME } from './vars.ts
 export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.Polygon | null> {
   static NAME: PlotType = NAME
   override readonly LAYER: string = FILL_LAYER_NAME
+  private removed = false
+  private cachedCenterKey = ''
+  private cachedCenter: LngLat | null = null
+
   public title: IconPoint | null = null
   public line: Line | null = null
 
@@ -31,9 +35,7 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
   constructor(map: Map, options: T) {
     super(map, options)
 
-    if (this.options.position) {
-      this.options.position = [...this.options.position, this.options.position[0]]
-    }
+    this.options.position = this.normalizePositions(this.options.position)
 
     this.residentEvent = new FillResidentEvent(map, this)
     this.updateEvent = new FillUpdateEvent(map, this)
@@ -41,17 +43,7 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
 
     this.createLine()
 
-    if (this.center) {
-      this.title = new IconPoint(this.context.map, {
-        icon: this.options.icon ?? 'normal-fill',
-        visibility: this.options.visibility,
-        id: this.id + '-fill-title-icon',
-        position: this.center,
-        name: this.options.name,
-        isName: this.options.isName,
-      })
-    }
-
+    this.syncTitle()
     this.residentEvent.enabled()
   }
 
@@ -60,19 +52,20 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
       return null
     }
 
-    if (this.geometry === null) return null
-
-    const center = centerOfMass(this.getFeature())
-
-    if (booleanPointInPolygon(center, this.getFeature() as GeoJSON.Feature<GeoJSON.Polygon>)) {
-      const coordinates = center.geometry.coordinates
-      return new LngLat(coordinates[0], coordinates[1])
-    } else {
-      const coordinates = this.options.position.map((item) => item.toArray())
-
-      const [lng, lat]: number[] = polylabel([coordinates], 0.000001)
-      return new LngLat(lng, lat)
+    const feature = this.getFeature()
+    if (!feature.geometry) return null
+    const polygon = feature as Feature<Polygon>
+    const key = JSON.stringify(polygon.geometry.coordinates)
+    if (key === this.cachedCenterKey && this.cachedCenter) {
+      return new LngLat(this.cachedCenter.lng, this.cachedCenter.lat)
     }
+    const center = centerOfMass(polygon)
+    const coordinates = booleanPointInPolygon(center, polygon)
+      ? center.geometry.coordinates
+      : polylabel(polygon.geometry.coordinates, 0.000001)
+    this.cachedCenterKey = key
+    this.cachedCenter = new LngLat(coordinates[0], coordinates[1])
+    return new LngLat(this.cachedCenter.lng, this.cachedCenter.lat)
   }
 
   get geometry(): Polygon | null {
@@ -80,12 +73,12 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
   }
 
   getFeature(): Feature<Polygon | null> {
+    const outline = this.line?.getFeature()
     if (
-      this.line?.geometry &&
-      Array.isArray(this.line.geometry.coordinates) &&
-      this.line.geometry.coordinates.length > 2
+      outline?.geometry &&
+      new Set(outline.geometry.coordinates.map((coordinate) => coordinate.join(','))).size >= 3
     ) {
-      const polygon = lineToPolygon(this.line.getFeature() as unknown as GeoJSON.LineString, {
+      const polygon = lineToPolygon(outline as Feature<GeoJSON.LineString>, {
         properties: {
           ...this.options.style,
           ...this.options.properties,
@@ -111,7 +104,7 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
 
   move(position: LngLat): void {
     // 1. 确保有拖拽参考点和内部关联的 line 对象 如果不借助鼠标拖拽 直接移动以中心为基准点
-    const drag: LngLat | null = this.center ?? this.updateEvent.getDragLngLat()
+    const drag: LngLat | null = this.updateEvent.getDragLngLat() ?? this.center
     if (!this.line || !drag) return
 
     // 2. 计算当前鼠标所在的帧，相对于上一帧鼠标位置的经纬度偏移量 (Delta)
@@ -135,6 +128,50 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
 
     // 5. 触发真正的统一重绘
     this.render()
+  }
+
+  private normalizePositions(positions: T['position']): T['position'] {
+    if (!positions) return undefined
+    if (!positions.length) return []
+    const result = positions.map((position) => {
+      // Validate runtime input as well as the public TypeScript contract.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (!position || !Number.isFinite(position.lng) || !Number.isFinite(position.lat)) {
+        throw new Error('Invalid polygon coordinate')
+      }
+      return new LngLat(position.lng, position.lat)
+    })
+    const first = result[0]
+    while (
+      result.length > 1 &&
+      result.at(-1)!.lng === first.lng &&
+      result.at(-1)!.lat === first.lat
+    )
+      result.pop()
+    if (result.length >= 3) result.push(new LngLat(first.lng, first.lat))
+    return result
+  }
+
+  private syncTitle(): void {
+    const center = this.center
+    if (!center) {
+      this.title?.remove()
+      this.title = null
+      return
+    }
+    const options = {
+      id: this.id + '-fill-title-icon',
+      icon: this.options.icon ?? 'normal-fill',
+      position: center,
+      visibility: this.options.visibility,
+      name: this.options.name,
+      isName: this.options.isName,
+    }
+    if (this.title) this.title.update(options)
+    else {
+      this.title = new IconPoint(this.context.map, options)
+      this.title.render()
+    }
   }
 
   public createLine(): void {
@@ -199,37 +236,48 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
   }
 
   remove(): void {
+    if (this.removed) return
+    this.createEvent.destroy()
+    this.updateEvent.destroy()
+    this.residentEvent.destroy()
+    this.detachLifecycle()
+    this.removeAllListeners()
+    this.context.focus.remove(this.id)
+    this.context.map.removeFeatureState({ source: this.SOURCE, id: this.id })
     this.options.position = []
     this.removeLine()
 
     this.title?.remove()
     this.title = null
     this.render()
+    this.removed = true
   }
 
   public override show(): void {
     this.line?.show()
+    this.line?.points.at(-1)?.hide()
     super.show()
+    if (this.isEdit) this.edit()
   }
 
   public override hide(): void {
+    this.stop()
+    this.updateEvent.disabled()
+    this.residentEvent.disabled()
     this.line?.hide()
     super.hide()
   }
 
   render(): void {
+    if (this.removed) return
     if (this.line) {
       this.line.render()
       this.options.position = this.line.options.position
     }
 
-    if (this.options.visibility === 'visible') {
-      this.title?.show()
-    } else {
-      this.title?.hide()
-    }
+    this.syncTitle()
 
-    if (this.isFocus) {
+    if (this.isFocus && this.geometry && this.visibility === 'visible') {
       this.context.focus.set(this.getFeature() as GeoJSON.Feature, {
         armLength: 40,
         padding: 30,
@@ -255,6 +303,7 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
     this.createEvent.disabled()
     this.residentEvent.enabled()
     this.setState({ create: false })
+    this.render()
   }
 
   unedit(): void {
@@ -267,7 +316,9 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
   }
 
   edit(): void {
+    if (this.removed) return
     this.setState({ edit: true })
+    if (this.visibility !== 'visible') return
 
     this.line?.edit()
 
@@ -289,6 +340,7 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
   }
 
   select(): void {
+    if (!this.geometry) return
     const bounds = bbox(this.getFeature() as GeoJSON.Feature) as [number, number, number, number]
     this.context.map.fitBounds(bounds, {
       padding: {
@@ -299,9 +351,7 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
       },
     })
 
-    this.context.map.once('moveend', () => {
-      this.focus()
-    })
+    this.focus()
   }
 
   unselect(): void {
@@ -309,13 +359,15 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
   }
 
   update(options: T): void {
+    if (options.id !== this.id) throw new Error('Plot id cannot be changed')
+    this.updateEvent.disabled()
     this.options = options
 
-    if (this.options.position) {
-      this.options.position = [...this.options.position, this.options.position[0]]
-    }
+    this.options.position = this.normalizePositions(this.options.position)
 
     this.removeLine()
     this.createLine()
+    if (this.isEdit) this.edit()
+    else this.render()
   }
 }

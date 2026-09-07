@@ -5,6 +5,33 @@ import type { EventMessage } from '@/types/EventState'
 import { EventStatus } from '@/types/EventState'
 
 export abstract class EventState extends Module {
+  private static zoomLocks = new WeakMap<Map, { count: number; enabled: boolean }>()
+  private ownsZoomLock = false
+
+  protected lockDoubleClickZoom(): void {
+    if (this.ownsZoomLock) return
+    const map = this.context.map
+    const lock = EventState.zoomLocks.get(map) ?? {
+      count: 0,
+      enabled: map.doubleClickZoom.isEnabled(),
+    }
+    lock.count++
+    EventState.zoomLocks.set(map, lock)
+    this.ownsZoomLock = true
+    map.doubleClickZoom.disable()
+  }
+
+  protected unlockDoubleClickZoom(): void {
+    if (!this.ownsZoomLock) return
+    this.ownsZoomLock = false
+    const map = this.context.map
+    const lock = EventState.zoomLocks.get(map)
+    if (!lock) return
+    if (--lock.count === 0) {
+      if (lock.enabled) map.doubleClickZoom.enable()
+      EventState.zoomLocks.delete(map)
+    }
+  }
   public status: EventStatus = EventStatus.OFF
   static ON: EventStatus = EventStatus.ON
   static OFF: EventStatus = EventStatus.OFF
@@ -19,10 +46,8 @@ export abstract class EventState extends Module {
 
   public switch(): EventStatus {
     if (this.status === EventState.ON) {
-      this.status = EventState.OFF
       this.disabled()
     } else if (this.status === EventState.OFF) {
-      this.status = EventState.ON
       this.enabled()
     }
 

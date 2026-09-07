@@ -7,6 +7,14 @@ import { getOrCreateContext } from './Context.ts'
 export abstract class Module extends EventEmitter {
   protected context: Context
 
+  private readonly onMapRemove = (): void => {
+    this.destroy()
+  }
+
+  protected detachLifecycle(): void {
+    this.context.map.off('beforeRemove', this.onMapRemove)
+  }
+
   /**
    * 构造函数，初始化地图上下文和选项配置
    * @param map - 地图实例对象
@@ -18,9 +26,7 @@ export abstract class Module extends EventEmitter {
 
     this.onAdd()
 
-    this.context.map.once('beforeRemove', () => {
-      this.onRemove()
-    })
+    this.context.map.once('beforeRemove', this.onMapRemove)
   }
 
   public mount(): void {
@@ -28,6 +34,7 @@ export abstract class Module extends EventEmitter {
   }
 
   public destroy(): void {
+    this.detachLifecycle()
     this.onRemove()
   }
 

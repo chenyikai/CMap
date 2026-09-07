@@ -23,6 +23,10 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
   static NAME: PlotType = NAME
   override readonly LAYER: string = LINE_LAYER_NAME
 
+  private nodeSequence = 0
+  private midSequence = 0
+  private removed = false
+
   public points: PointInstance[] = []
   public midPoints: Point[] = []
   public titles: GeoJSON.Feature<GeoJSON.LineString | null>[] = []
@@ -47,7 +51,7 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
   }
 
   public override get center(): LngLat | null {
-    if (!Array.isArray(this.options.position) || this.options.position.length === 0) {
+    if (!Array.isArray(this.options.position) || this.options.position.length < 2) {
       return null
     }
 
@@ -86,13 +90,7 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
       }
     }
 
-    const coordinates = this.points.map((point) => {
-      if (point.center) {
-        return point.center.toArray()
-      } else {
-        return []
-      }
-    })
+    const coordinates = (this.options.position ?? []).map((position) => position.toArray())
 
     const modify = this.updateEvent.getModifyLngLat()
 
@@ -105,6 +103,10 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
 
     if (this.createEvent.getDrawLngLat()) {
       coordinates.push(this.createEvent.getDrawLngLat()!.toArray())
+    }
+
+    if (coordinates.length < 2) {
+      return { type: 'Feature', id: this.id, geometry: null, properties: {} }
     }
 
     return lineString(
@@ -134,20 +136,28 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
     this.createEvent.disabled()
     this.residentEvent.enabled()
     this.setState({ create: false })
+    this.render()
   }
 
   public override show(): void {
+    if (this.removed) return
+    this.options.visibility = 'visible'
     this.points.forEach((point) => {
       point.show()
     })
     this.midPoints.forEach((mid) => {
-      mid.show()
+      if (this.isEdit) mid.show()
+      else mid.hide()
     })
 
-    super.show()
+    this.restoreInteraction()
+    this.render()
   }
 
   public override hide(): void {
+    this.stop()
+    this.updateEvent.disabled()
+    this.residentEvent.disabled()
     this.points.forEach((point) => {
       point.hide()
     })
@@ -159,7 +169,9 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
   }
 
   public override edit(): void {
+    if (this.removed) return
     this.setState({ edit: true })
+    if (this.visibility !== 'visible') return
 
     this.points.forEach((point) => {
       point.edit()
@@ -201,6 +213,7 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
     this.render()
   }
   public override select(): void {
+    if (!this.geometry) return
     const bounds = bbox(this.getFeature() as GeoJSON.Feature) as [number, number, number, number]
     this.context.map.fitBounds(bounds, {
       padding: {
@@ -211,16 +224,14 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
       },
     })
 
-    this.context.map.once('moveend', () => {
-      this.focus()
-    })
+    this.focus()
   }
   public override unselect(): void {
     this.unfocus()
   }
   public override move(position: LngLat): void {
     // 如果不借助鼠标拖拽 直接移动以中心为基准点
-    const drag: LngLat | null = this.center ?? this.updateEvent.getDragLngLat()
+    const drag: LngLat | null = this.updateEvent.getDragLngLat() ?? this.center
 
     if (!drag) return
 
@@ -237,24 +248,34 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
     this.render()
   }
   public override update(options: T): void {
+    if (options.id !== this.id) throw new Error('Plot id cannot be changed')
     this.options = options
-    this.removePoint()
     this.createPoint()
 
     this.render()
   }
   public override remove(): void {
+    if (this.removed) return
+    this.residentEvent.destroy()
+    this.createEvent.destroy()
+    this.updateEvent.destroy()
     this.removePoint()
-    // this.removeTitles()
-    this.residentEvent.disabled()
-    this.createEvent.disabled()
-    this.updateEvent.disabled()
+    this.removed = true
+    this.detachLifecycle()
+    this.context.focus.remove(this.id)
+    this.context.map.removeFeatureState({ source: this.SOURCE, id: this.id })
     this.removeAllListeners()
 
     this.options.position = []
-    this.render()
+    this.context.register.setGeoJSONData(this.SOURCE, {
+      type: 'Feature',
+      id: this.id,
+      geometry: null,
+      properties: {},
+    })
   }
   public override render(): void {
+    if (this.removed) return
     this.points.map((point) => {
       point.render()
     })
@@ -265,7 +286,7 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
       })
     }
 
-    if (this.isFocus) {
+    if (this.isFocus && this.geometry && this.visibility === 'visible') {
       this.context.focus.set(this.getFeature() as GeoJSON.Feature, {
         armLength: 40,
         padding: 30,
@@ -311,7 +332,7 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
       // id: `${this.id}-node-${String(index)}`, // 建议 ID 加上 node 标识
       id, // 建议 ID 加上 node 标识
       isName: false,
-      visibility: 'visible',
+      visibility: this.options.visibility,
       position,
       style,
       properties: {
@@ -333,7 +354,7 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
     return new Point(this.context.map, {
       id, // 建议 ID 加上 mid 标识
       isName: false,
-      visibility: 'visible',
+      visibility: this.options.visibility,
       position,
       style,
       properties: {
@@ -388,15 +409,26 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
   }
 
   public createPoint(): void {
+    this.residentEvent.disabled()
+    this.updateEvent.disabled()
     this.removePoint()
 
     const positions = this.options.position ?? []
 
     positions.forEach((current, i) => {
-      this.points.push(this.createVertex(`${this.id}-node-${String(i)}`, i, current))
+      this.points.push(
+        this.createVertex(`${this.id}-node-${String(this.nodeSequence++)}`, i, current),
+      )
     })
 
     this.syncMidPoints()
+    this.restoreInteraction()
+  }
+
+  private restoreInteraction(): void {
+    if (this.visibility !== 'visible') return
+    if (this.isEdit) this.edit()
+    else if (!this.isCreate) this.residentEvent.enabled()
   }
 
   /**
@@ -405,12 +437,21 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
    * @param position 新节点的坐标
    */
   public insertPoint(index: number, position: LngLat): PointInstance {
+    if (!Number.isInteger(index) || index < 0 || index > this.points.length) {
+      throw new RangeError('Invalid vertex index')
+    }
+    this.residentEvent.disabled()
+    this.updateEvent.disabled()
     // 1. 同步原始数据
     this.options.position ??= []
     this.options.position.splice(index, 0, position)
 
     // 2. 创建新点实例并插入数组
-    const newPoint = this.createVertex(`${this.id}-node-${String(index)}`, index, position)
+    const newPoint = this.createVertex(
+      `${this.id}-node-${String(this.nodeSequence++)}`,
+      index,
+      position,
+    )
     this.points.splice(index, 0, newPoint)
 
     // 如果处于编辑状态，让新点立刻表现为编辑态
@@ -421,6 +462,7 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
     // 3. 重新修正索引并全量同步中点
     this.reindexPoints()
     this.syncMidPoints()
+    this.restoreInteraction()
     this.render()
 
     return newPoint
@@ -442,7 +484,7 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
     }
 
     // 2. 移动实体点
-    point.move(position)
+    point.options.position = position
 
     // 3. 局部更新左右两个相邻的中点(提升性能，不用全量重绘)
     this.updateAdjacentMidPoints(index)
@@ -458,13 +500,17 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
     const midPoint = this.getMidPoint(index)
     if (!midPoint) return
 
-    midPoint.move(position)
+    midPoint.options.position = position
   }
 
   public removePointAt(index: number): void {
+    if (!Number.isInteger(index) || index < 0) return
     const point = this.points.at(index)
     if (!point) return
 
+    this.residentEvent.disabled()
+    this.updateEvent.disabled()
+    this.options.position?.splice(index, 1)
     // 1. 从地图上移除
     point.remove()
 
@@ -472,20 +518,15 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
     this.points.splice(index, 1)
 
     // 3. 更新索引并重绘中点
-    this._reindexPoints()
-    this._syncMidPoints()
+    this.reindexPoints()
+    this.syncMidPoints()
+    this.restoreInteraction()
+    this.render()
   }
 
   /** 清空所有点 (替代原有的 removePoint) */
   public clearAll(): void {
-    this.points.forEach((point) => {
-      point.remove()
-    })
-    this.midPoints.forEach((mid) => {
-      mid.remove()
-    })
-    this.points = []
-    this.midPoints = []
+    this.update({ ...this.options, position: [] })
   }
 
   public removePoint(): void {
@@ -503,27 +544,28 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
    * 内部机制：全量重新生成所有的中点
    */
   protected syncMidPoints(): void {
-    // 1. 清空旧的中点
-    this.midPoints.forEach((mid) => {
+    const previous = new globalThis.Map(
+      this.midPoints.map((mid) => [String(mid.options.properties?.segment), mid]),
+    )
+    this.midPoints = []
+    for (let i = 0; i < this.points.length - 1; i++) {
+      const start = this.points[i]
+      const end = this.points[i + 1]
+      if (!start.center || !end.center) continue
+      const segment = JSON.stringify([start.id, end.id])
+      const position = this.calcMidPosition(start.center, end.center)
+      const mid =
+        previous.get(segment) ??
+        this.createMid(`${this.id}-mid-${String(this.midSequence++)}`, i, position)
+      previous.delete(segment)
+      mid.options.position = position
+      mid.options.properties = { ...mid.options.properties, index: i, segment }
+      mid.options.visibility = this.isEdit ? this.visibility : 'none'
+      this.midPoints.push(mid)
+    }
+    previous.forEach((mid) => {
       mid.remove()
     })
-    this.midPoints = []
-
-    // 2. 根据现有的实点重新构建
-    for (let i = 0; i < this.points.length - 1; i++) {
-      const current = this.points[i].center
-      const next = this.points[i + 1].center
-
-      if (current && next) {
-        const midPos = this.calcMidPosition(current, next)
-        const midPoint = this.createMid(`${this.id}-mid-${String(i)}`, i, midPos)
-
-        // 如果线段正在编辑态，新生成的中点也应表现为编辑态
-        if (this.isEdit) midPoint.edit()
-
-        this.midPoints.push(midPoint)
-      }
-    }
   }
 
   /**
@@ -531,16 +573,10 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
    */
   protected reindexPoints(): void {
     this.points.forEach((point, i) => {
-      const newId = `${this.id}-node-${String(i)}`
-
       if (point.options.properties) {
         point.options.properties.index = i
-
-        point.options.properties.id = newId
       }
-
-      // 注意：根据你的底层实现，可能也需要强行覆盖外部的 id
-      point.options.id = newId
+      if ('index' in point.options) point.options.index = i + 1
     })
   }
 
@@ -573,36 +609,5 @@ export class Line<T extends ILineOptions = ILineOptions> extends Poi<T, GeoJSON.
     const midLng = (p1.lng + p2.lng) / 2
     const midLat = (p1.lat + p2.lat) / 2
     return new LngLat(midLng, midLat)
-  }
-
-  /** 内部：当数组发生增删时，修复 properties 中的 index 和 id */
-  private _reindexPoints(): void {
-    this.points.forEach((point, i) => {
-      const newId = `${this.id}-node-${String(i)}`
-      // 这里根据你的底层 Point 类 API 进行调整，通常需要更新配置
-      if (point.options.properties) {
-        point.options.properties.index = i
-        point.options.properties.id = newId
-      }
-      point.options.id = newId
-    })
-  }
-
-  /** 内部：重新计算并全量同步所有中点 */
-  private _syncMidPoints(): void {
-    // 1. 先清除旧的中点
-    this.midPoints.forEach((mid) => {
-      mid.remove()
-    })
-    this.midPoints = []
-
-    // 2. 根据当前的顶点重新生成
-    for (let i = 0; i < this.points.length - 1; i++) {
-      const currentPos = this.points[i].options.position!
-      const nextPos = this.points[i + 1].options.position!
-
-      const midPos = this.calcMidPosition(currentPos, nextPos)
-      this.midPoints.push(this.createMid(`${this.id}-mid-${String(i)}`, i, midPos))
-    }
   }
 }

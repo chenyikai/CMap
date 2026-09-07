@@ -2,11 +2,6 @@ import { point } from '@turf/turf'
 import type * as GeoJSON from 'geojson'
 import type { Map } from 'mapbox-gl'
 
-import {
-  PointCreateEvent,
-  PointResidentEvent,
-  PointUpdateEvent,
-} from '@/modules/Plot/plugins/Events/PointEvents.ts'
 import { Point } from '@/modules/Plot/plugins/Point'
 import type { IIconPointOptions } from '@/types/Plot/IconPoint.ts'
 import type { PlotType } from '@/types/Plot/Poi.ts'
@@ -29,9 +24,6 @@ export class IconPoint extends Point<IIconPointOptions> {
   constructor(map: Map, options: IIconPointOptions) {
     super(map, options)
 
-    this.residentEvent = new PointResidentEvent<IconPoint>(map, this)
-    this.updateEvent = new PointUpdateEvent<IconPoint>(map, this)
-    this.createEvent = new PointCreateEvent<IconPoint>(map, this)
     this.residentEvent.enabled()
   }
 
