@@ -6,9 +6,9 @@ import type { Tooltip } from '@/core/Tooltip'
 import type { BaseShip } from '@/modules/Ship/BaseShip.ts'
 import { ResidentEvent } from '@/modules/Ship/Events/ResidentEvent'
 import type { CollisionItemOptions } from '@/types/Collision/item.ts'
-import type { Anchor } from '@/types/Toolip'
 import type { IShipOptions } from '@/types/Ship'
 import type { BaseShipConstructor, IBaseShipOptions } from '@/types/Ship/BaseShip.ts'
+import type { Anchor } from '@/types/Toolip'
 
 class Ship extends Module {
   options: IShipOptions

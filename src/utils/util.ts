@@ -22,7 +22,6 @@ export function distanceToPx(map: Map, distance: number, latitude?: number): num
 }
 
 export function getPointScope(map: Map, x: number, y: number, width: number): BBox {
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return envelope(
     featureCollection([
       point(map.unproject([x - width / 2, y - width / 2]).toArray()),

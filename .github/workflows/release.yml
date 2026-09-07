@@ -23,17 +23,17 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
 
-      # 2. 安装 pnpm (这是修复 "spawn pnpm ENOENT" 的关键)
+      # 2. 安装与 package.json 一致的 pnpm 版本
       - name: Install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
-          version: 9 # 或者保持跟你本地一致的版本
+          version: 10.33.0
 
       # 3. 配置 Node 环境
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           # 必须指定 registry-url，否则无法读取 NODE_AUTH_TOKEN
           registry-url: 'https://registry.npmjs.org'
           # 开启缓存，加速安装

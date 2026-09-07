@@ -1,6 +1,7 @@
 {
   "name": "cmap-core",
   "version": "0.2.1",
+  "packageManager": "pnpm@10.33.0",
   "type": "module",
   "files": [
     "dist",
@@ -30,11 +31,13 @@
     "url": "https://github.com/chenyikai/cmap-core/issues"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --config vite.demo.config.ts",
+    "dev:demo": "vite --config vite.demo.config.ts",
     "build": "tsc && vite build",
-    "preview": "tsc && vite build && vite",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "preview": "pnpm run preview:demo",
+    "preview:demo": "pnpm run build:demo && vite preview --config vite.demo.config.ts",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "format": "prettier --write \"./**/*.{html,vue,ts,js,json,md}\"",
     "type-check": "tsc --noEmit",
     "test:types": "pnpm run build && tsc -p tests/types/tsconfig.json",
@@ -46,7 +49,7 @@
     "pub:minor": "node -e \"const fs=require('fs');const has=fs.readdirSync('.changeset').some(f=>f.endsWith('.md')&&f!=='README.md');if(!has)fs.writeFileSync('.changeset/auto-bump.md','---\\n\\\"cmap-core\\\": minor\\n---\\n\\nVersion bump.\\n')\" && changeset version && pnpm run build && changeset publish && node scripts/git-tag.cjs",
     "pub:major": "node -e \"const fs=require('fs');const has=fs.readdirSync('.changeset').some(f=>f.endsWith('.md')&&f!=='README.md');if(!has)fs.writeFileSync('.changeset/auto-bump.md','---\\n\\\"cmap-core\\\": major\\n---\\n\\nVersion bump.\\n')\" && changeset version && pnpm run build && changeset publish && node scripts/git-tag.cjs",
     "build:demo": "vite build --config vite.demo.config.ts",
-    "build:publish": "tsc && vite build && npm run build:demo && cp -rf dist haitu-demo package.json debug index.html /Users/yikaichen/Projects/chenzq/cmap-core/ && cd /Users/yikaichen/Projects/chenzq/cmap-core && git add . && (git commit -m \"chore: update dist and package.json $(date +'%Y-%m-%d_%H-%M-%S')\" || echo \"No changes to commit\") && git push"
+    "check": "pnpm run lint && pnpm run type-check && pnpm run test:types && pnpm run build:demo"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",

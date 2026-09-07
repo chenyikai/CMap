@@ -138,7 +138,6 @@ export class FillUpdateEvent extends FillBaseEvent {
   protected dragStartLngLat: LngLat | null = null
 
   private onLineUpdate = (e: EventMessage<Line>, point: PointInstance): void => {
-    console.log('onLineUpdate')
     if (!point.center || !this.fill.line) return
 
     const index = point.options.properties?.index as number

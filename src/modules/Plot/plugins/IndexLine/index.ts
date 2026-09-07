@@ -8,7 +8,7 @@ import type { IndexPointStyle } from '@/types/Plot/IndexPoint.ts'
 import { PointType } from '@/types/Plot/Line.ts'
 import type { PointInstance } from '@/types/Plot/Point.ts'
 
-export class IndexLine extends Line<IIndexLineOptions> {
+export class IndexLine extends Line {
   constructor(map: Map, options: IIndexLineOptions) {
     super(map, options)
   }
