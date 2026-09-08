@@ -16,9 +16,13 @@ export const CIRCLE_LAYER_NAME = 'mapbox-gl-plot-circle-layer'
 
 export const CIRCLE_OUTLINE_LAYER_NAME = 'mapbox-gl-plot-circle-outline-layer'
 
+export const CIRCLE_META = 'circle-shape'
+
 export const DEFAULT_FILL_COLOR = '#009dff'
 
 export const DEFAULT_FILL_OPACITY = 0.3
+
+export const DEFAULT_LINE_WIDTH = 3
 
 const circleColor: DataDrivenPropertyValueSpecification<ColorSpecification> = [
   'coalesce',
@@ -32,10 +36,27 @@ const circleOpacity: DataDrivenPropertyValueSpecification<number> = [
   DEFAULT_FILL_OPACITY,
 ]
 
+const circleLineColor: DataDrivenPropertyValueSpecification<ColorSpecification> = [
+  'coalesce',
+  ['get', 'line-color'],
+  circleColor,
+]
+
+const circleLineWidth: DataDrivenPropertyValueSpecification<number> = [
+  'coalesce',
+  ['get', 'line-width'],
+  DEFAULT_LINE_WIDTH,
+]
+
 export const CIRCLE_LAYER: LayerSpecification = {
   id: CIRCLE_LAYER_NAME,
   type: 'fill',
-  filter: ['all', ['==', '$type', 'Polygon'], ['==', 'visibility', 'visible']],
+  filter: [
+    'all',
+    ['==', '$type', 'Polygon'],
+    ['==', 'meta', CIRCLE_META],
+    ['==', 'visibility', 'visible'],
+  ],
   source: PLOT_SOURCE_NAME,
   paint: {
     'fill-color': circleColor,
@@ -47,11 +68,16 @@ export const CIRCLE_LAYER: LayerSpecification = {
 export const CIRCLE_OUTLINE_LAYER: LayerSpecification = {
   id: CIRCLE_OUTLINE_LAYER_NAME,
   type: 'line',
-  filter: ['all', ['==', 'visibility', 'visible']],
+  filter: [
+    'all',
+    ['==', '$type', 'Polygon'],
+    ['==', 'meta', CIRCLE_META],
+    ['==', 'visibility', 'visible'],
+  ],
   source: PLOT_SOURCE_NAME,
   paint: {
-    'line-color': circleColor,
-    'line-width': 3,
+    'line-color': circleLineColor,
+    'line-width': circleLineWidth,
   },
   layout: {},
 }

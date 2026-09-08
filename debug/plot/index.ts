@@ -1,7 +1,7 @@
 import { LngLat, type Map as MapboxMap } from 'mapbox-gl'
 import type { TabPageApi, FolderApi } from '@tweakpane/core'
 import { Pane } from 'tweakpane'
-import { IconManager, Fill, Line, ArrowLine, IconPoint, IndexLine, IndexPoint, Point } from '@/index'
+import { IconManager, Fill, Line, ArrowLine, Circle, IconPoint, IndexLine, IndexPoint, Point } from '@/index'
 import { logEvent } from '../utils/logger'
 import { IconAnchor } from "../../src/types/Plot/IconPoint";
 import { fillData, lineData } from "./mock";
@@ -15,7 +15,7 @@ const state = {
   plotType: 'Point',
   name: '未命名标绘',
   isName: true,
-  radius: 8,
+  radius: 1000,
   strokeWidth: 2,
   strokeColor: '#f00',
   circleColor: '#fff',
@@ -51,6 +51,7 @@ const editState = {
   lineWidth: 3,
   fillColor: '#00BFFF',
   fillOpacity: 0.4,
+  radius: 1000,
   // 🌟 核心：用于动态绑定坐标列表的数组
   positions:[] as { x: number, y: number }[]
 }
@@ -63,7 +64,8 @@ const mockPositions = {
   ].map(p => new LngLat(p[0], p[1])),
   fill: [
     [122.0668, 30.0093],[122.0676, 30.0034],[122.0896, 30.0055],[122.0985, 30.0092],[122.0947, 30.0157]
-  ].map(p => new LngLat(p[0], p[1]))
+  ].map(p => new LngLat(p[0], p[1])),
+  circle: new LngLat(122.0844, 30.0012),
 }
 
 function addMockLine(map: MapboxMap) {
@@ -131,7 +133,7 @@ export async function initPlotDebug(map: MapboxMap, tab: TabPageApi) {
     options: {
       '基础点 (Point)': 'Point', '序号点 (IndexPoint)': 'IndexPoint', '图标点 (IconPoint)': 'IconPoint',
       '基础折线 (Line)': 'Line', '箭头线 (ArrowLine)': 'ArrowLine', '序号线 (IndexLine)': 'IndexLine',
-      '多边形 (Fill)': 'Fill'
+      '多边形 (Fill)': 'Fill', '圆形 (Circle)': 'Circle'
     }
   }).on('change', updateDynamicParams)
 
@@ -141,6 +143,7 @@ export async function initPlotDebug(map: MapboxMap, tab: TabPageApi) {
   // 属性绑定
   const bFillColor = createFolder.addBinding(state, 'fillColor', { label: '面填充色' })
   const bFillOpacity = createFolder.addBinding(state, 'fillOpacity', { label: '面透明度', min: 0.1, max: 1, step: 0.1 })
+  const bRadius = createFolder.addBinding(state, 'radius', { label: '圆半径(米)', min: 1, max: 10000, step: 10 })
   const bLineWidth = createFolder.addBinding(state, 'lineWidth', { label: '线宽', min: 1, max: 15, step: 1 })
   const bLineColor = createFolder.addBinding(state, 'lineColor', { label: '线颜色' })
   const bIndex = createFolder.addBinding(state, 'index', { label: '序号', min: 1, max: 999, step: 1 })
@@ -177,7 +180,7 @@ export async function initPlotDebug(map: MapboxMap, tab: TabPageApi) {
 
   function updateDynamicParams() {
     const t = state.plotType
-    const hideAll = () =>[bFillColor, bFillOpacity, bLineWidth, bLineColor, bIndex, bCircleRadius, bCircleColor, bStrokeWidth, bStrokeColor, bTextColor, bIcon, bIconSize, bIconRotate, bIconAnchor].forEach(b => b.hidden = true)
+    const hideAll = () =>[bFillColor, bFillOpacity, bRadius, bLineWidth, bLineColor, bIndex, bCircleRadius, bCircleColor, bStrokeWidth, bStrokeColor, bTextColor, bIcon, bIconSize, bIconRotate, bIconAnchor].forEach(b => b.hidden = true)
     hideAll()
     if (['Point', 'IndexPoint'].includes(t)) {
       bCircleRadius.hidden = bStrokeWidth.hidden = bStrokeColor.hidden = bCircleColor.hidden = bTextColor.hidden = false;
@@ -194,6 +197,9 @@ export async function initPlotDebug(map: MapboxMap, tab: TabPageApi) {
     }
     if (t === 'Fill') {
       bFillColor.hidden = bFillOpacity.hidden = bLineColor.hidden = bLineWidth.hidden = false;
+    }
+    if (t === 'Circle') {
+      bRadius.hidden = bFillColor.hidden = bFillOpacity.hidden = bLineColor.hidden = bLineWidth.hidden = false;
     }
   }
   updateDynamicParams()
@@ -253,6 +259,7 @@ function refreshManagePane(map: MapboxMap) {
 
   const eFillColor = editPropsFolder.addBinding(editState, 'fillColor', { label: '面填充色' })
   const eFillOpacity = editPropsFolder.addBinding(editState, 'fillOpacity', { label: '面透明度', min: 0.1, max: 1, step: 0.1 })
+  const eRadius = editPropsFolder.addBinding(editState, 'radius', { label: '圆半径(米)', min: 1, max: 10000, step: 10 })
   const eLineWidth = editPropsFolder.addBinding(editState, 'lineWidth', { label: '线宽', min: 1, max: 15, step: 1 })
   const eLineColor = editPropsFolder.addBinding(editState, 'lineColor', { label: '线颜色' })
   const eIndex = editPropsFolder.addBinding(editState, 'index', { label: '序号', min: 1, step: 1 })
@@ -298,6 +305,13 @@ function refreshManagePane(map: MapboxMap) {
         plot.options.outLineStyle['line-width'] = editState.lineWidth
       }
     }
+    if (type === 'Circle') {
+      plot.options.radius = editState.radius
+      plot.options.style['fill-color'] = editState.fillColor
+      plot.options.style['fill-opacity'] = editState.fillOpacity
+      plot.options.style['line-color'] = editState.lineColor
+      plot.options.style['line-width'] = editState.lineWidth
+    }
 
     plot.update(plot.options)
     logEvent('属性已更新', plot.options)
@@ -336,10 +350,11 @@ function refreshManagePane(map: MapboxMap) {
     editState.lineWidth = type === 'Fill' ? outlineStyle['line-width'] || 3 : style['line-width'] || 3
     editState.fillColor = style['fill-color'] || '#00BFFF'
     editState.fillOpacity = style['fill-opacity'] || 0.4
+    editState.radius = plot.options.radius || 1000
     editState.index = plot.options.index || 1
 
     // 刷新属性面板显隐
-    const hideAll = () =>[eFillColor, eFillOpacity, eLineWidth, eLineColor, eIndex, eCircleRadius, eCircleColor, eStrokeWidth, eStrokeColor, eTextColor, eIconSize, eIconRotate].forEach(b => b.hidden = true)
+    const hideAll = () =>[eFillColor, eFillOpacity, eRadius, eLineWidth, eLineColor, eIndex, eCircleRadius, eCircleColor, eStrokeWidth, eStrokeColor, eTextColor, eIconSize, eIconRotate].forEach(b => b.hidden = true)
     hideAll()
     if (['Point', 'IndexPoint'].includes(type)) {
       eCircleRadius.hidden = eStrokeWidth.hidden = eStrokeColor.hidden = eCircleColor.hidden = eTextColor.hidden = false;
@@ -348,6 +363,7 @@ function refreshManagePane(map: MapboxMap) {
     if (type === 'IconPoint') { eIconSize.hidden = eIconRotate.hidden = eTextColor.hidden = false; }
     if (['Line', 'IndexLine', 'ArrowLine'].includes(type)) { eLineWidth.hidden = eLineColor.hidden = false; }
     if (type === 'Fill') { eFillColor.hidden = eFillOpacity.hidden = eLineColor.hidden = eLineWidth.hidden = false; }
+    if (type === 'Circle') { eRadius.hidden = eFillColor.hidden = eFillOpacity.hidden = eLineColor.hidden = eLineWidth.hidden = false; }
 
     // 渲染坐标输入列表
     renderCoordinatesList(plot)
@@ -370,7 +386,7 @@ function refreshManagePane(map: MapboxMap) {
     // 清空旧的坐标控件
     [...coordFolder.children].forEach(child => child.dispose())
 
-    const pos = plot.options.position
+    const pos = plot.options.center ?? plot.options.position
     if (!pos) {
       // @ts-ignore
       coordFolder.addBinding({ msg: '等待绘制坐标...' }, 'msg', { readonly: true, label: '' })
@@ -401,7 +417,9 @@ function refreshManagePane(map: MapboxMap) {
 
     coordFolder.addButton({ title: '📌 将坐标应用至地图' }).on('click', () => {
       // 将修改后的 { x, y } 重新转换为 LngLat 塞回 plot
-      if (Array.isArray(plot.options.position)) {
+      if (plot.options.center) {
+        plot.options.center = new LngLat(editState.positions[0].x, editState.positions[0].y)
+      } else if (Array.isArray(plot.options.position)) {
         plot.options.position = editState.positions.map(p => new LngLat(p.x, p.y))
       } else {
         plot.options.position = new LngLat(editState.positions[0].x, editState.positions[0].y)
@@ -490,6 +508,19 @@ function buildPlotInstance(map: MapboxMap, isMock = false): any {
         ...baseConfig,
         position: isMock ? mockPositions.fill : undefined,
         style: { 'fill-color': state.fillColor, 'fill-opacity': state.fillOpacity },
+      })
+    case 'Circle':
+      return new Circle(map, {
+        ...baseConfig,
+        center: isMock ? mockPositions.circle : undefined,
+        radius: isMock ? state.radius : undefined,
+        unit: 'meters',
+        style: {
+          'fill-color': state.fillColor,
+          'fill-opacity': state.fillOpacity,
+          'line-color': state.lineColor,
+          'line-width': state.lineWidth,
+        },
       })
     default:
       return null

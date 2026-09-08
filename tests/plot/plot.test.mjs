@@ -52,6 +52,7 @@ const { Line } = load('src/modules/Plot/plugins/Line')
 const { ArrowLine } = load('src/modules/Plot/plugins/ArrowLine')
 const { IndexLine } = load('src/modules/Plot/plugins/IndexLine')
 const { Fill } = load('src/modules/Plot/plugins/Fill')
+const { Circle } = load('src/modules/Plot/plugins/Circle')
 const { EventManager } = load('src/core/EventManager')
 const { Event, PLOT_SOURCE_NAME } = load('src/modules/Plot/vars.ts')
 const { EventStatus } = load('src/types/EventState')
@@ -259,11 +260,89 @@ test('Fill normalizes closure, updates title and renders replacement geometry', 
   assert.equal(fill.options.position.length, 4)
   assert.equal(fill.title.options.name, 'Updated')
   assert.equal(features.get('f').geometry.type, 'Polygon')
+  assert.equal(features.get('f').properties.meta, 'fill-shape')
   const empty = new Fill(map, options('empty', []))
   assert.equal(empty.options.position.length, 0)
   empty.start()
   assert.doesNotThrow(() => map.fire('contextmenu', mouse(lngLat(1))))
   empty.remove()
+})
+
+test('Circle renders isolated polygon data and validates its geometry options', () => {
+  const { map, features } = createMap()
+  const circle = new Circle(map, {
+    id: 'circle',
+    center: lngLat(120, 30),
+    radius: 1000,
+    visibility: 'visible',
+    properties: { id: 'unsafe', meta: 'unsafe', visibility: 'none' },
+  })
+  circle.render()
+  const feature = features.get(circle.id)
+  assert.equal(feature.geometry.type, 'Polygon')
+  assert.equal(feature.geometry.coordinates[0].length, 65)
+  assert.equal(feature.properties.id, circle.id)
+  assert.equal(feature.properties.meta, 'circle-shape')
+  assert.equal(feature.properties.visibility, 'visible')
+  assert.equal(circle.unit, 'meters')
+  assert.throws(() => circle.update({ ...circle.options, radius: -1 }), /finite non-negative/)
+  const listenerCount = map.listenerCount('beforeRemove')
+  assert.throws(
+    () => new Circle(map, { id: 'bad', radius: 1, steps: 3, visibility: 'visible' }),
+    /greater than or equal to 4/,
+  )
+  assert.equal(map.listenerCount('beforeRemove'), listenerCount)
+  circle.remove()
+  assert.equal(map.listenerCount('beforeRemove'), 0)
+})
+
+test('Circle creation, control-point editing and body dragging stay synchronized', () => {
+  const { map } = createMap()
+  const circle = new Circle(map, { id: 'circle', visibility: 'visible' })
+  let creates = 0
+  circle.on(Event.CREATE, () => creates++)
+  circle.start()
+  assert.equal(map.zoomEnabled, false)
+  map.fire('click', mouse(lngLat(120, 30)))
+  map.fire('mousemove', mouse(lngLat(120.01, 30)))
+  map.fire('click', mouse(lngLat(120.01, 30)))
+  assert.equal(creates, 1)
+  assert.equal(circle.isCreate, false)
+  assert.equal(circle.isEdit, true)
+  assert.ok(circle.radius > 0)
+  assert.ok(circle.centerPoint)
+  assert.ok(circle.radiusPoint)
+  assert.equal(map.zoomEnabled, true)
+
+  const originalRadius = circle.radius
+  const radiusPoint = circle.radiusPoint
+  map.fire('mousedown', mouse(radiusPoint.center, radiusPoint.id), radiusPoint.LAYER)
+  map.fire('mousemove', mouse(lngLat(120.02, 30)))
+  map.fire('mouseup', mouse(lngLat(120.02, 30)))
+  assert.ok(circle.radius > originalRadius)
+
+  const radiusAfterResize = circle.radius
+  const centerPoint = circle.centerPoint
+  map.fire('mousedown', mouse(centerPoint.center, centerPoint.id), centerPoint.LAYER)
+  map.fire('mousemove', mouse(lngLat(121, 31)))
+  map.fire('mouseup', mouse(lngLat(121, 31)))
+  assert.equal(circle.center.lng, 121)
+  assert.equal(circle.center.lat, 31)
+  assert.ok(Math.abs(circle.radius - radiusAfterResize) < 1e-9)
+
+  map.fire('mousedown', mouse(lngLat(121, 31), circle.id), circle.LAYER)
+  map.fire('mousemove', mouse(lngLat(122, 32)))
+  map.fire('mouseup', mouse(lngLat(122, 32)))
+  assert.equal(circle.center.lng, 122)
+  assert.equal(circle.center.lat, 32)
+
+  circle.hide()
+  assert.equal(map.listenerCount('mousemove'), 0)
+  circle.show()
+  assert.equal(circle.centerPoint.visibility, 'visible')
+  assert.equal(circle.radiusPoint.visibility, 'visible')
+  circle.remove()
+  assert.equal(map.listenerCount('beforeRemove'), 0)
 })
 
 test('drawing preserves double-click zoom preference and removal cancels creation', () => {

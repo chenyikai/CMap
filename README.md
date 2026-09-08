@@ -652,7 +652,42 @@ fill.render()
 
 ### Circle — 圆形
 
-> 当前版本只公开圆形相关类型，`Circle` 运行时类尚未发布。
+```ts
+import { Circle } from 'cmap-core'
+import { LngLat } from 'mapbox-gl'
+
+const circle = new Circle(cmap.getMap(), {
+  id: 'circle-1',
+  name: '警戒区',
+  visibility: 'visible',
+  isName: true,
+  center: new LngLat(120.38, 36.07),
+  radius: 1000,
+  unit: 'meters',
+  style: {
+    'fill-color': '#3B82F6',
+    'fill-opacity': 0.3,
+    'line-color': '#2563EB',
+    'line-width': 2,
+  },
+})
+
+circle.render()
+circle.edit()
+```
+
+交互绘制时不传 `center` 和 `radius`，调用 `start()` 后第一次点击确定圆心，移动鼠标预览半径，第二次点击完成并进入编辑状态。
+
+```ts
+const circle = new Circle(cmap.getMap(), {
+  id: 'circle-draw-1',
+  visibility: 'visible',
+})
+
+circle.start()
+```
+
+编辑状态下可拖动圆心控制点移动圆心、拖动半径控制点调整半径，也可拖动圆形本体整体移动。
 
 ### ICircleOptions
 
@@ -662,11 +697,14 @@ fill.render()
 |------|------|------|
 | `center` | `LngLat` | 圆心坐标 |
 | `radius` | `number` | 半径数值 |
-| `unit` | `Units` | 半径单位，见下表 |
+| `unit` | `Units` | 半径单位，默认 `meters`，见下表 |
+| `steps` | `number` | 圆周采样点数，默认 `64`，最小 `4` |
 | `style` | `CircleStyle` | 样式 |
+| `centerStyle` | `PointStyle` | 圆心控制点样式 |
+| `radiusStyle` | `PointStyle` | 半径控制点样式 |
 
 **unit 可选值：**
-`meters` `metres` `kilometers` `kilometres` `miles` `nauticalmiles` `feet` `yards` `inches` `centimeters` `millimeters` `radians` `degrees`
+`meters` `metres` `kilometers` `kilometres` `miles` `nauticalmiles` `feet` `yards` `inches` `centimeters` `centimetres` `millimeters` `millimetres` `radians` `degrees`
 
 ### CircleStyle
 
@@ -674,6 +712,21 @@ fill.render()
 |------|------|------|
 | `fill-color` | `ColorSpecification` | 填充颜色 |
 | `fill-opacity` | `number` | 填充透明度（0 ~ 1） |
+| `line-color` | `ColorSpecification` | 轮廓颜色 |
+| `line-width` | `number` | 轮廓宽度（像素） |
+
+### Circle 常用方法
+
+| 方法 | 说明 |
+|------|------|
+| `setCenter(position)` | 更新圆心并保持半径不变 |
+| `setRadius(radius)` | 直接按当前单位更新半径 |
+| `setRadiusFrom(position)` | 根据圆心和目标坐标计算半径 |
+| `start()` / `stop()` | 开始 / 停止交互绘制 |
+| `edit()` / `unedit()` | 开启 / 关闭控制点编辑 |
+| `show()` / `hide()` | 显示 / 隐藏圆和控制点 |
+| `select()` | 缩放至圆形范围并显示聚焦框 |
+| `remove()` | 移除圆形及其控制点和事件 |
 
 ---
 

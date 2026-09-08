@@ -16,7 +16,7 @@ import type { IFillOptions } from '@/types/Plot/Fill.ts'
 import type { PlotType } from '@/types/Plot/Poi.ts'
 import type { CirclePointStyle } from '@/types/Plot/Point.ts'
 
-import { DEFAULT_FILL_COLOR, FILL_LAYER_NAME, LAYER_LIST, NAME } from './vars.ts'
+import { DEFAULT_FILL_COLOR, FILL_LAYER_NAME, FILL_META, LAYER_LIST, NAME } from './vars.ts'
 
 export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.Polygon | null> {
   static NAME: PlotType = NAME
@@ -82,8 +82,9 @@ export class Fill<T extends IFillOptions = IFillOptions> extends Poi<T, GeoJSON.
         properties: {
           ...this.options.style,
           ...this.options.properties,
-          visibility: this.options.visibility,
           id: this.options.id,
+          meta: FILL_META,
+          visibility: this.options.visibility,
         },
       }) as Feature<Polygon | null>
       polygon.id = this.id

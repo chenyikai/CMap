@@ -25,6 +25,8 @@ export { default as ResourceRegister } from './core/ResourceRegister'
 export { Tooltip } from './core/Tooltip'
 export { CMap } from './modules/CMap'
 export { ArrowLine } from './modules/Plot/plugins/ArrowLine'
+export { Circle } from './modules/Plot/plugins/Circle'
+export * as CircleVars from './modules/Plot/plugins/Circle/vars.ts'
 export { Poi } from './modules/Plot/plugins/Poi'
 // export * as ArrowLineVars from './modules/Plot/plugins/ArrowLine/vars.ts'
 export { Fill } from './modules/Plot/plugins/Fill'
@@ -34,6 +36,12 @@ export * as IconPointVars from './modules/Plot/plugins/IconPoint/vars.ts'
 export { IndexLine } from './modules/Plot/plugins/IndexLine'
 // export * as IndexLineVars from './modules/Plot/plugins/IndexLine/vars.ts'
 export { EventManager } from './core/EventManager'
+export {
+  CircleBaseEvent,
+  CircleCreateEvent,
+  CircleResidentEvent,
+  CircleUpdateEvent,
+} from './modules/Plot/plugins/Events/CircleEvents'
 export {
   FillBaseEvent,
   FillCreateEvent,

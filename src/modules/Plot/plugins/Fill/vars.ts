@@ -16,6 +16,8 @@ export const FILL_LAYER_NAME = 'mapbox-gl-plot-fill-layer'
 
 export const FILL_CLOSED_LINE_LAYER_NAME = 'mapbox-gl-plot-closed-line-layer'
 
+export const FILL_META = 'fill-shape'
+
 export const DEFAULT_FILL_COLOR = '#009dff'
 
 export const DEFAULT_FILL_OPACITY = 0.3
@@ -35,7 +37,12 @@ const fillOpacity: DataDrivenPropertyValueSpecification<number> = [
 export const FILL_LAYER: LayerSpecification = {
   id: FILL_LAYER_NAME,
   type: 'fill',
-  filter: ['all', ['==', '$type', 'Polygon'], ['==', 'visibility', 'visible']],
+  filter: [
+    'all',
+    ['==', '$type', 'Polygon'],
+    ['==', 'meta', FILL_META],
+    ['==', 'visibility', 'visible'],
+  ],
   source: PLOT_SOURCE_NAME,
   paint: {
     'fill-color': fillColor,
@@ -47,7 +54,12 @@ export const FILL_LAYER: LayerSpecification = {
 export const FILL_CLOSED_LINE_LAYER: LayerSpecification = {
   id: FILL_CLOSED_LINE_LAYER_NAME,
   type: 'line',
-  filter: ['all', ['==', 'visibility', 'visible']],
+  filter: [
+    'all',
+    ['==', '$type', 'Polygon'],
+    ['==', 'meta', FILL_META],
+    ['==', 'visibility', 'visible'],
+  ],
   source: PLOT_SOURCE_NAME,
   paint: {
     'line-color': fillColor,
