@@ -1,7 +1,6 @@
 import type { LayerSpecification } from 'mapbox-gl'
 
 import type { SortLayer } from '@/core/ResourceRegister'
-import { DEFAULT_TEXT_COLOR } from '@/modules/Plot/plugins/IndexPoint/vars.ts'
 import { PLOT_SOURCE_NAME } from '@/modules/Plot/vars.ts'
 import { PlotType } from '@/types/Plot/Poi.ts'
 
@@ -14,6 +13,7 @@ export const POINT_CIRCLE_LAYER_NAME = 'mapbox-gl-plot-point-circle-layer'
 export const POINT_TEXT_LAYER_NAME = 'mapbox-gl-plot-point-text-layer'
 
 export const DEFAULT_TEXT_SIZE = 12
+export const DEFAULT_TEXT_COLOR = '#333'
 export const GAP_PX = 5
 export const DEFAULT_CIRCLE_RADIUS = 10
 export const DEFAULT_CIRCLE_COLOR = '#fff'
@@ -85,9 +85,9 @@ export const POINT_TEXT_LAYER: LayerSpecification = {
   layout: {
     'text-field': ['get', 'text'],
     'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
-    'text-offset': ['coalesce', ['get', '_calcTextOffset'], ['get', 'text-offset'], [0, 0]],
+    'text-offset': ['coalesce', ['get', 'text-offset'], ['get', '_calcTextOffset'], [0, 0]],
     'text-anchor': 'top',
-    'text-rotate': ['coalesce', ['get', 'icon-rotate'], 0],
+    'text-rotate': ['coalesce', ['get', 'text-rotate'], 0],
     'text-allow-overlap': true,
     // 文字大小同样遵循外层 interpolate
     'text-size': [

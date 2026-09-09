@@ -373,7 +373,7 @@ point.render()
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `position` | `LngLat` | 坐标 `[经度, 纬度]` |
+| `position` | `LngLatLike` | 坐标，支持 `LngLat`、`[经度, 纬度]` 或 `{ lng, lat }` |
 | `style` | `CirclePointStyle` | 样式 |
 | `properties` | `Record<string, any>` | 自定义属性 |
 
@@ -386,6 +386,9 @@ point.render()
 | `circle-stroke-color` | `ColorSpecification` | 描边颜色 |
 | `circle-stroke-width` | `number` | 描边宽度（像素） |
 | `text-color` | `ColorSpecification` | 名称文字颜色 |
+| `text-size` | `number` | 名称文字大小（像素） |
+| `text-offset` | `[number, number]` | 名称文字偏移；显式配置优先于自动偏移 |
+| `text-rotate` | `number` | 名称文字旋转角度（度），默认不跟随图标旋转 |
 
 ---
 
@@ -472,6 +475,7 @@ iconPoint.render()
 | `text-color` | `string` | 文字颜色 |
 | `text-size` | `number` | 文字大小（像素） |
 | `text-offset` | `[number, number]` | 文字偏移 `[x, y]` |
+| `text-rotate` | `number` | 文字旋转角度（度） |
 
 ```ts
 type IconAnchor =

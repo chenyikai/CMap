@@ -36,8 +36,8 @@ export abstract class EventState extends Module {
   static ON: EventStatus = EventStatus.ON
   static OFF: EventStatus = EventStatus.OFF
 
-  protected constructor(map: Map) {
-    super(map)
+  protected constructor(map: Map, attachMapLifecycle = true) {
+    super(map, attachMapLifecycle)
   }
 
   public abstract override onAdd(): void

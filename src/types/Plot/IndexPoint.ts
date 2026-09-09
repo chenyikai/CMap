@@ -1,17 +1,10 @@
-import type { ColorSpecification } from 'mapbox-gl'
+import type { CirclePointStyle, IPointOptions } from '@/types/Plot/Point.ts'
 
-import type { IPointOptions } from '@/types/Plot/Point.ts'
-
-export interface IndexPointStyle {
-  'text-color'?: string
+export interface IndexPointStyle extends CirclePointStyle {
   'text-size'?: number
-  'circle-stroke-width'?: number
-  'circle-stroke-color'?: ColorSpecification
-  'circle-radius'?: number
-  'circle-color'?: ColorSpecification
 }
 
-export interface IIndexPointOptions extends IPointOptions {
+export interface IIndexPointOptions extends IPointOptions<IndexPointStyle> {
   index: number
   style?: IndexPointStyle
 }

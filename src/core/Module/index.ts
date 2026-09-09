@@ -19,14 +19,16 @@ export abstract class Module extends EventEmitter {
    * 构造函数，初始化地图上下文和选项配置
    * @param map - 地图实例对象
    */
-  protected constructor(map: Map) {
+  protected constructor(map: Map, attachMapLifecycle = true) {
     super()
 
     this.context = getOrCreateContext(map)
 
     this.onAdd()
 
-    this.context.map.once('beforeRemove', this.onMapRemove)
+    if (attachMapLifecycle) {
+      this.context.map.once('beforeRemove', this.onMapRemove)
+    }
   }
 
   public mount(): void {

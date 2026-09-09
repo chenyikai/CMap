@@ -24,7 +24,7 @@ export class IconPoint extends Point<IIconPointOptions> {
   constructor(map: Map, options: IIconPointOptions) {
     super(map, options)
 
-    this.residentEvent.enabled()
+    this.syncInteractionState()
   }
 
   public override onAdd(): void {
@@ -36,7 +36,8 @@ export class IconPoint extends Point<IIconPointOptions> {
   }
 
   public override getFeature(): GeoJSON.Feature<GeoJSON.Point | null> {
-    if (!this.options.position) {
+    const position = this.center
+    if (!position) {
       return {
         type: 'Feature',
         geometry: null,
@@ -59,7 +60,7 @@ export class IconPoint extends Point<IIconPointOptions> {
     })
 
     return point(
-      this.options.position.toArray(),
+      position.toArray(),
       {
         ...this.options.style,
         ...this.options.properties,

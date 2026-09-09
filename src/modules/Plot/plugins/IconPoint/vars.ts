@@ -41,7 +41,7 @@ export const POINT_ICON_LAYER: LayerSpecification = {
       ['linear'],
       ['zoom'],
       5,
-      ['*', baseIconSize, 0],
+      ['*', baseIconSize, 0.5],
       14,
       ['*', baseIconSize, 1],
       22,

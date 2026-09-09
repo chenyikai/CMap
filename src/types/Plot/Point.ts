@@ -11,19 +11,25 @@ import type { IconPointStyle } from '@/types/Plot/IconPoint.ts'
 import type { IndexPointStyle } from '@/types/Plot/IndexPoint.ts'
 import type { IPoiOptions, PlotVisibility, PointPosition } from '@/types/Plot/Poi.ts'
 
-export interface CirclePointStyle {
+export interface PointTextStyle {
+  'text-color'?: DataDrivenPropertyValueSpecification<ColorSpecification>
+  'text-size'?: number
+  'text-offset'?: [number, number]
+  'text-rotate'?: number
+}
+
+export interface CirclePointStyle extends PointTextStyle {
   'circle-stroke-width'?: number
   'circle-stroke-color'?: DataDrivenPropertyValueSpecification<ColorSpecification>
   'circle-radius'?: number
   'circle-color'?: DataDrivenPropertyValueSpecification<ColorSpecification>
-  'text-color'?: DataDrivenPropertyValueSpecification<ColorSpecification>
 }
 
 export type PointStyle = CirclePointStyle | IndexPointStyle | IconPointStyle
 
-export interface IPointOptions extends IPoiOptions {
+export interface IPointOptions<TStyle = PointStyle> extends IPoiOptions {
   position?: PointPosition
-  style?: PointStyle
+  style?: TStyle
   // edit?: boolean
   properties?: Record<string, any>
 }
@@ -73,8 +79,8 @@ export interface PointInstance<T extends IPointOptions = IPointOptions> {
   unselect(): void
 
   // --- 数据与渲染方法 (源自 A 与 C) ---
-  // C 中重写，参数从 LngLat 变为了 T['position']
-  move(position: T['position']): void
+  // Point 接受 Mapbox 的完整 LngLatLike 输入，并在内部归一化为 LngLat。
+  move(position: PointPosition): void
   update(options: T): void
   remove(): void
   render(): void

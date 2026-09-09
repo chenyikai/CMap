@@ -1,6 +1,6 @@
 import { point } from '@turf/turf'
 import type * as GeoJSON from 'geojson'
-import type { LngLat, Map } from 'mapbox-gl'
+import { LngLat, type LngLatLike, type Map } from 'mapbox-gl'
 
 import { Poi } from '@/modules/Plot/plugins/Poi.ts'
 import {
@@ -19,6 +19,13 @@ import type { IPointOptions } from '@/types/Plot/Point.ts'
 
 import { PointCreateEvent, PointResidentEvent, PointUpdateEvent } from '../Events/PointEvents'
 
+function normalizeOptions<T extends IPointOptions>(options: T): T {
+  return {
+    ...options,
+    position: options.position == null ? undefined : LngLat.convert(options.position),
+  }
+}
+
 export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJSON.Point | null> {
   static NAME: PlotType = NAME
 
@@ -26,25 +33,25 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
 
   protected removed = false
 
-  public residentEvent: PointResidentEvent
+  public residentEvent: PointResidentEvent<this>
 
-  public updateEvent: PointUpdateEvent
+  public updateEvent: PointUpdateEvent<this>
 
-  public createEvent: PointCreateEvent
+  public createEvent: PointCreateEvent<this>
 
   constructor(map: Map, options: T) {
-    super(map, options)
+    super(map, normalizeOptions(options))
 
     this.residentEvent = new PointResidentEvent(map, this)
     this.updateEvent = new PointUpdateEvent(map, this)
     this.createEvent = new PointCreateEvent(map, this)
     if (new.target === Point) {
-      this.residentEvent.enabled()
+      this.syncInteractionState()
     } else {
       // Custom subclasses may initialize their layer after super() returns.
       queueMicrotask(() => {
         if (!this.removed && !this.isEdit && !this.isCreate && this.visibility === 'visible') {
-          this.residentEvent.enabled()
+          this.syncInteractionState()
         }
       })
     }
@@ -66,29 +73,27 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
   }
   public override edit(): void {
     if (this.removed) return
-    this.setState({ edit: true })
-    this.residentEvent.disabled()
-    if (this.visibility === 'visible') this.updateEvent.enabled()
+    this.setState({ create: false, edit: true })
+    this.syncInteractionState()
   }
   public override unedit(): void {
     this.setState({ edit: false })
-    if (this.visibility === 'visible') this.residentEvent.enabled()
-    this.updateEvent.disabled()
+    this.syncInteractionState()
   }
 
   public override hide(): void {
-    this.updateEvent.disabled()
-    this.residentEvent.disabled()
-    this.stop()
+    if (this.removed) return
+    this.options.visibility = 'none'
+    this.setState({ create: false, hover: false })
+    this.syncInteractionState()
     this.context.focus.remove(this.id)
-    super.hide()
+    this.render()
   }
 
   public override show(): void {
     if (this.removed) return
     this.options.visibility = 'visible'
-    if (this.isEdit) this.updateEvent.enabled()
-    else this.residentEvent.enabled()
+    this.syncInteractionState()
     this.render()
   }
 
@@ -112,7 +117,7 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
   public override get center(): LngLat | null {
     if (!this.options.position) return null
 
-    return this.options.position
+    return LngLat.convert(this.options.position)
   }
 
   public override get geometry(): GeoJSON.Point | null {
@@ -120,7 +125,8 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
   }
 
   public override getFeature(): GeoJSON.Feature<GeoJSON.Point | null> {
-    if (!this.options.position) {
+    const position = this.center
+    if (!position) {
       // const emptyFeature: GeoJSON.Feature<null, T['style'] & T['properties']> = {
       //   type: 'Feature',
       //   geometry: null,
@@ -149,7 +155,7 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
     })
 
     return point(
-      this.options.position.toArray(),
+      position.toArray(),
       {
         ...this.options.style,
         ...this.options.properties,
@@ -167,22 +173,23 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
   }
   public override start(): void {
     if (this.center === null) {
-      this.setState({ create: true })
-      this.createEvent.enabled()
+      this.setState({ create: true, edit: false })
+      this.syncInteractionState()
     }
   }
   public override stop(): void {
     this.setState({ create: false })
-    this.createEvent.disabled()
+    this.syncInteractionState()
   }
 
-  public override move(position: T['position']): void {
-    this.options.position = position
+  public override move(position: LngLatLike): void {
+    this.options.position = LngLat.convert(position)
     this.render()
   }
   public override update(options: T): void {
     if (options.id !== this.id) throw new Error('Plot id cannot be changed')
-    this.options = options
+    this.options = normalizeOptions(options)
+    this.syncInteractionState()
     this.render()
   }
   public override remove(): void {
@@ -208,10 +215,36 @@ export class Point<T extends IPointOptions = IPointOptions> extends Poi<T, GeoJS
   }
   public override render(): void {
     if (this.removed) return
-    if (this.isFocus && this.geometry && this.visibility === 'visible') {
-      this.context.focus.set(this.getFeature() as GeoJSON.Feature)
+    const feature = this.getFeature()
+    if (this.isFocus && feature.geometry && this.visibility === 'visible') {
+      this.context.focus.set(feature as GeoJSON.Feature)
+    } else {
+      this.context.focus.remove(this.id)
     }
-    this.context.register.setGeoJSONData(PLOT_SOURCE_NAME, this.getFeature() as GeoJSON.Feature)
+    this.context.register.setGeoJSONData(PLOT_SOURCE_NAME, feature as GeoJSON.Feature)
+  }
+
+  protected syncInteractionState(): void {
+    if (this.removed || this.visibility !== 'visible') {
+      this.createEvent.disabled()
+      this.updateEvent.disabled()
+      this.residentEvent.disabled()
+      return
+    }
+
+    if (this.isCreate) {
+      this.createEvent.enabled()
+      this.updateEvent.disabled()
+      this.residentEvent.disabled()
+    } else if (this.isEdit) {
+      this.createEvent.disabled()
+      this.updateEvent.enabled()
+      this.residentEvent.disabled()
+    } else {
+      this.createEvent.disabled()
+      this.updateEvent.disabled()
+      this.residentEvent.enabled()
+    }
   }
 
   /**

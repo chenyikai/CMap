@@ -1,12 +1,16 @@
 import type { LayerSpecification } from 'mapbox-gl'
 
 import type { SortLayer } from '@/core/ResourceRegister'
+import {
+  DEFAULT_TEXT_COLOR as POINT_DEFAULT_TEXT_COLOR,
+  TEXT_Z_INDEX,
+} from '@/modules/Plot/plugins/Point/vars.ts'
 import { PLOT_SOURCE_NAME } from '@/modules/Plot/vars.ts'
 import { PlotType } from '@/types/Plot/Poi.ts'
 
 export const NAME = PlotType.INDEX_POINT
 export const POINT_INDEX_LAYER_NAME = 'mapbox-gl-plot-point-index-layer'
-export const DEFAULT_TEXT_COLOR = '#333'
+export const DEFAULT_TEXT_COLOR = POINT_DEFAULT_TEXT_COLOR
 
 const baseTextSize = ['coalesce', ['get', 'text-size'], 12]
 
@@ -47,6 +51,6 @@ export const POINT_INDEX_LAYER: LayerSpecification = {
 export const LAYER_LIST: SortLayer[] = [
   {
     layer: POINT_INDEX_LAYER,
-    zIndex: 11,
+    zIndex: TEXT_Z_INDEX,
   },
 ]

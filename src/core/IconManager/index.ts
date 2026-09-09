@@ -6,18 +6,32 @@ import type { Icon, IconLoadResult, Image, SvgIcon } from '@/types/IconManager'
 import { RESULT_CODE } from '@/types/IconManager'
 import { convertSvgToImageObjects } from '@/utils/util.ts'
 
+interface IconManagerState {
+  cache: Cache
+  loadingPromises: Map<string, Promise<IconLoadResult>>
+}
+
+const stateByMap = new WeakMap<MapboxMap, IconManagerState>()
+
 class IconManager {
   static SUCCESS = RESULT_CODE.SUCCESS
   static FAIL = RESULT_CODE.FAIL
 
   _map: MapboxMap
-  _cache: Cache = new Cache({ uniqueKey: `${cacheKey}-icon`, type: 'localstorage' })
+  _cache: Cache
 
   // 🌟 核心修复：并发加载锁。防止同一时间多次请求同一个图标
-  private loadingPromises = new Map<string, Promise<IconLoadResult>>()
+  private loadingPromises: Map<string, Promise<IconLoadResult>>
 
   constructor(map: MapboxMap) {
     this._map = map
+    const state = stateByMap.get(map) ?? {
+      cache: new Cache({ uniqueKey: `${cacheKey}-icon`, type: 'localstorage' }),
+      loadingPromises: new Map<string, Promise<IconLoadResult>>(),
+    }
+    stateByMap.set(map, state)
+    this._cache = state.cache
+    this.loadingPromises = state.loadingPromises
   }
 
   async load(icons: Icon[]): Promise<{ success: IconLoadResult[]; error: IconLoadResult[] }> {
@@ -159,9 +173,9 @@ class IconManager {
         }
 
         if (image) {
-          this._cache.set({
+          void this._cache.set({
             name: icon.name,
-            content: { width: image.width, height: image.height },
+            content: { width: image.width, height: image.height, image },
           })
           this._map.updateImage(icon.name, image)
           resolve(this.success(icon))

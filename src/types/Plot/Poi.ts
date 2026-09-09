@@ -1,8 +1,8 @@
-import type { LngLat } from 'mapbox-gl'
+import type { LngLatLike } from 'mapbox-gl'
 
-export type PlotPosition = LngLat | LineStringPosition | PolygonPosition
+export type PlotPosition = PointPosition | LineStringPosition | PolygonPosition
 
-export type PointPosition = LngLat
+export type PointPosition = LngLatLike
 
 export type LineStringPosition = PointPosition[]
 

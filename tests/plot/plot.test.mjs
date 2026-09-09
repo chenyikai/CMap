@@ -48,6 +48,8 @@ function load(relative) {
 const { Point } = load('src/modules/Plot/plugins/Point')
 const { IndexPoint } = load('src/modules/Plot/plugins/IndexPoint')
 const { IconPoint } = load('src/modules/Plot/plugins/IconPoint')
+const { POINT_TEXT_LAYER } = load('src/modules/Plot/plugins/Point/vars.ts')
+const { POINT_ICON_LAYER } = load('src/modules/Plot/plugins/IconPoint/vars.ts')
 const { Line } = load('src/modules/Plot/plugins/Line')
 const { ArrowLine } = load('src/modules/Plot/plugins/ArrowLine')
 const { IndexLine } = load('src/modules/Plot/plugins/IndexLine')
@@ -62,6 +64,7 @@ function createMap() {
   const events = new Map()
   const states = new Map()
   const features = new Map()
+  const focusItems = new Map()
   const canvas = { style: { cursor: '' } }
   const map = {
     zoomEnabled: true,
@@ -127,7 +130,14 @@ function createMap() {
         }
       },
     },
-    focus: { set() {}, remove() {} },
+    focus: {
+      set(feature) {
+        focusItems.set(String(feature.id), feature)
+      },
+      remove(id) {
+        focusItems.delete(String(id))
+      },
+    },
     iconManage: {
       addSvg() {},
       loadSvg() {},
@@ -137,7 +147,7 @@ function createMap() {
     },
     eventManager: new EventManager(map),
   }
-  return { map, features }
+  return { map, features, focusItems }
 }
 const mouse = (position, id) => ({
   lngLat: position,
@@ -150,6 +160,7 @@ test('Point subclass events use their own layer and remove releases lifecycle li
   for (const Type of [Point, IndexPoint, IconPoint]) {
     const { map } = createMap()
     const p = new Type(map, { ...options('p', lngLat(1)), icon: 'test', index: 1 })
+    assert.equal(map.listenerCount('beforeRemove'), 1)
     let clicks = 0
     p.on(Event.CLICK, () => clicks++)
     map.fire('click', mouse(lngLat(1), p.id), p.LAYER)
@@ -163,6 +174,63 @@ test('Point subclass events use their own layer and remove releases lifecycle li
     p.remove()
     assert.equal(map.listenerCount('beforeRemove'), 0)
   }
+})
+
+test('Point variants normalize LngLatLike array positions', () => {
+  for (const Type of [Point, IndexPoint, IconPoint]) {
+    const { map } = createMap()
+    const p = new Type(map, { ...options('p', [120.38, 36.07]), icon: 'test', index: 1 })
+    assert.equal(p.center.lng, 120.38)
+    assert.equal(p.center.lat, 36.07)
+    assert.equal(p.geometry.type, 'Point')
+    p.move([121, 37])
+    assert.equal(p.center.lng, 121)
+    assert.equal(p.center.lat, 37)
+    p.remove()
+  }
+})
+
+test('Point style keeps explicit text offset ahead of the calculated fallback', () => {
+  const textOffset = POINT_TEXT_LAYER.layout['text-offset']
+  assert.equal(JSON.stringify(textOffset[1]), JSON.stringify(['get', 'text-offset']))
+  assert.equal(JSON.stringify(textOffset[2]), JSON.stringify(['get', '_calcTextOffset']))
+
+  const iconSize = POINT_ICON_LAYER.layout['icon-size']
+  assert.equal(iconSize[4][2], 0.5)
+})
+
+test('Point update synchronizes visibility, events and focus data', () => {
+  const { map, focusItems } = createMap()
+  const p = new Point(map, options('p', lngLat(1)))
+  p.focus()
+  assert.equal(focusItems.has(p.id), true)
+
+  p.update({ ...p.options, visibility: 'none' })
+  assert.equal(focusItems.has(p.id), false)
+  assert.equal(p.residentEvent.status, EventStatus.OFF)
+  assert.equal(p.updateEvent.status, EventStatus.OFF)
+  assert.equal(p.createEvent.status, EventStatus.OFF)
+
+  p.update({ ...p.options, visibility: 'visible' })
+  assert.equal(p.residentEvent.status, EventStatus.ON)
+  assert.equal(focusItems.has(p.id), true)
+
+  p.update({ ...p.options, position: undefined })
+  assert.equal(focusItems.has(p.id), false)
+  p.remove()
+})
+
+test('Point CREATE listeners observe the completed editable state', () => {
+  const { map } = createMap()
+  const p = new Point(map, options('p'))
+  let state
+  p.on(Event.CREATE, () => {
+    state = { create: p.isCreate, edit: p.isEdit }
+  })
+  p.start()
+  map.fire('click', mouse(lngLat(1)))
+  assert.deepEqual(state, { create: false, edit: true })
+  p.remove()
 })
 
 test('event switch is accurate, edit is idempotent, unedit cancels active dragging', () => {

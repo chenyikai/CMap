@@ -52,6 +52,7 @@ import type {
   PointInstance,
   PointPosition,
   PointStyle,
+  PointTextStyle,
   PolygonPosition,
   Shape,
   SimpleAnchor,
@@ -168,6 +169,12 @@ export const publicClasses = {
   Track,
 }
 
+export const pointLngLatLikeContract: IPointOptions = {
+  id: 'point-contract',
+  position: [120.38, 36.07],
+  visibility: 'visible',
+}
+
 export type PublicTypeContract = [
   AllAnchor,
   Anchor,
@@ -222,6 +229,7 @@ export type PublicTypeContract = [
   PointInstance,
   PointPosition,
   PointStyle,
+  PointTextStyle,
   PolygonPosition,
   Shape,
   SimpleAnchor,

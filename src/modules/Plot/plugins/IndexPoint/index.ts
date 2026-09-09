@@ -14,7 +14,7 @@ export class IndexPoint extends Point<IIndexPointOptions> {
 
   constructor(map: Map, options: IIndexPointOptions) {
     super(map, options)
-    this.residentEvent.enabled()
+    this.syncInteractionState()
   }
 
   public override onAdd(): void {
@@ -26,7 +26,8 @@ export class IndexPoint extends Point<IIndexPointOptions> {
   }
 
   public override getFeature(): GeoJSON.Feature<GeoJSON.Point | null> {
-    if (!this.options.position) {
+    const position = this.center
+    if (!position) {
       const emptyFeature: GeoJSON.Feature<null> = {
         type: 'Feature',
         geometry: null,
@@ -38,7 +39,7 @@ export class IndexPoint extends Point<IIndexPointOptions> {
     }
 
     return point(
-      this.options.position.toArray(),
+      position.toArray(),
       {
         ...this.options.style,
         ...this.options.properties,

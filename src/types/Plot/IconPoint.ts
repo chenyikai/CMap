@@ -1,4 +1,4 @@
-import type { IPointOptions } from '@/types/Plot/Point.ts'
+import type { IPointOptions, PointTextStyle } from '@/types/Plot/Point.ts'
 
 export type IconAnchor =
   | 'center'
@@ -11,16 +11,13 @@ export type IconAnchor =
   | 'bottom-left'
   | 'bottom-right'
 
-export interface IconPointStyle {
-  'text-color'?: string
-  'text-size'?: number
+export interface IconPointStyle extends PointTextStyle {
   'icon-size'?: number
   'icon-rotate'?: number
-  'text-offset'?: [number, number]
   'icon-anchor'?: IconAnchor
 }
 
-export interface IIconPointOptions extends IPointOptions {
+export interface IIconPointOptions extends IPointOptions<IconPointStyle> {
   icon: string
   style?: IconPointStyle
 }
